@@ -1,8 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  --font-inter: 'Inter';
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -35,6 +38,12 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Rallio Custom Colors */
+  --rallio-primary: #006D77;
+  --rallio-teal: #4A9B9B;
+  --rallio-teal-light: #5FB3B3;
+  --rallio-teal-dark: #3A8383;
 }
 
 .dark {

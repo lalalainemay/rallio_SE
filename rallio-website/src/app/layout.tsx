@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/lib/providers/query-provider";
+import { AuthProvider } from "@/lib/hooks/useAuth";
 // import { Toaster } from "../../components/ui/toaster";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-plus-jakarta-sans"
+});
 
 export const metadata: Metadata = {
   title: "Rallio - Badminton Court Finder & Queue Management",
@@ -18,11 +22,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.variable}>
-        <QueryProvider>
-          {children}
-          {/* <Toaster /> */}
-        </QueryProvider>
+      <body className={plusJakartaSans.variable}>
+        <AuthProvider>
+          <QueryProvider>
+            {children}
+            {/* <Toaster /> */}
+          </QueryProvider>
+        </AuthProvider>
       </body>
     </html>
   );

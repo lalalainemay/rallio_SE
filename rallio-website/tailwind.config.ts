@@ -17,6 +17,9 @@ const config: Config = {
     //   },
     // },
     extend: {
+      fontFamily: {
+        sans: ["var(--font-inter)", "sans-serif"],
+      },
       colors: {
         // 👇 ADD THE MISSING BASE COLOR DEFINITIONS HERE
         border: "hsl(var(--border))", // <-- This defines the 'border-border' utility
@@ -71,9 +74,6 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-      },
-      fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {
