@@ -16,6 +16,11 @@ This ensures you understand:
 - The project's architecture and conventions
 - Any specific implementation details or constraints
 
+**After completing any task or answering a question:**
+- Check `docs/tasks.md` for the current progress
+- Suggest what to do next based on the task list
+- Offer to continue with the next logical task or let the user choose
+
 ## Project Overview
 
 Rallio is a Badminton Court Finder & Queue Management System for Zamboanga City, Philippines. It's a full-stack monorepo with web (Next.js), mobile (React Native/Expo), and backend (Supabase/PostgreSQL) applications.

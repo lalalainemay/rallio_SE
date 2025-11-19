@@ -61,11 +61,9 @@
 - [x] Copy database schema to migrations folder
 - [x] Create Supabase project
   - Project URL: https://angddotiqwhhktqdkiyx.supabase.co
-- [ ] Run initial migration (apply 001_initial_schema.sql via SQL Editor or CLI)
-  - Go to Supabase Dashboard > SQL Editor
-  - Copy contents of `backend/supabase/migrations/001_initial_schema.sql`
-  - Execute the SQL to create all tables
-  - Then run `002_rls_policies.sql` to set up RLS
+- [x] Run initial migration (apply 001_initial_schema.sql via SQL Editor or CLI)
+  - All migrations applied successfully via `supabase db push`
+  - Database confirmed up to date
 - [x] Set up Row Level Security (RLS) policies (created 002_rls_policies.sql with comprehensive policies)
   - Policies for users, players, venues, courts, and amenities
   - Commented stubs for reservations and queue_sessions (add when tables are created)
@@ -80,16 +78,30 @@
   - Run `npm run dev:mobile` and verify auth flow
 
 ### Authentication (Web)
-- [ ] Create login page UI
-- [ ] Create signup page UI
-- [ ] Create forgot password page UI
-- [ ] Create reset password page UI
-- [ ] Implement login with Supabase Auth
-- [ ] Implement signup with email verification
-- [ ] Implement forgot password flow
-- [ ] Implement social login (Google)
-- [ ] Create protected route wrapper
-- [ ] Add auth state persistence
+- [x] Create login page UI
+  - Split-screen layout with branding
+  - Email/password form with show/hide toggle
+  - Google OAuth button
+  - Forgot password link
+- [x] Create signup page UI
+  - Multi-step form (details → phone number)
+  - First name, middle initial, last name, email, password
+  - Terms and conditions checkbox
+  - Google OAuth option
+- [x] Create forgot password page UI
+- [x] Create reset password page UI
+- [x] Create email verification page UI
+- [x] Implement login with Supabase Auth
+- [x] Implement signup with email verification
+- [x] Implement signup with automatic user/player profile creation
+  - Creates users table record with full name and phone
+  - Creates players table record with default skill level
+- [x] Implement forgot password flow
+- [x] Implement social login (Google)
+- [x] Create auth callback handler
+- [x] Create signout route
+- [x] Create protected dashboard layout
+- [x] Update theme with Rallio brand colors (teal/cyan)
 
 ### Authentication (Mobile)
 - [ ] Create login screen UI
@@ -100,11 +112,37 @@
 - [ ] Create auth navigation guard
 
 ### User Profile
-- [ ] Create profile page/screen UI
-- [ ] Implement profile update functionality
-- [ ] Add avatar upload to Supabase Storage
-- [ ] Create player profile section (skill level, play style)
-- [ ] Implement profile viewing for other users
+- [x] Create profile setup onboarding flow
+  - Welcome screen
+  - Details review (read-only from auth)
+  - Player info (birth date, gender, initial rating)
+  - Play styles selection (multi-select)
+  - Skill level selection (Beginner/Intermediate/Advanced/Elite)
+  - Match preferences (formats, frequency, location)
+- [x] Create home page with quick actions
+  - Book a court, Compete, Help AI buttons
+  - Suggested courts section
+  - Near you section with court cards
+- [x] Create profile page UI
+  - User info with avatar
+  - Stats (Queue Matches, Won Matches, Skill Level)
+  - Player badges placeholder
+  - Play styles tags
+  - Skill level tier badge
+  - Recent queue sessions
+- [x] Create main navigation
+  - Desktop header with logo, nav links, user dropdown, notifications
+  - Mobile bottom tab navigation (Home, My Match, Profile)
+  - Logout functionality
+- [x] **Phase 1 Complete: Foundation & Core Auth** ✅
+  - Full signup → email verification → profile setup flow
+  - User and player profiles auto-created on signup via database triggers
+  - Fixed critical users→profiles table bug in 3 files
+  - Navigation redirects work correctly
+  - Supabase database synced and ready with V2 schema
+  - Avatar upload to Supabase Storage working
+- [ ] Implement profile update functionality (edit existing profile)
+- [ ] Implement profile viewing for other users (public profiles)
 
 ---
 

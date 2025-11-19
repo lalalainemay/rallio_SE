@@ -6,7 +6,7 @@ Build a comprehensive Badminton Court Finder & Queue Management System for Zambo
 
 ## Development Phases
 
-### Phase 1: Foundation & Core Auth (Current)
+### Phase 1: Foundation & Core Auth ✅ COMPLETE
 **Goal:** Establish project infrastructure and authentication system
 
 - [x] Project scaffolding and monorepo setup
@@ -14,16 +14,22 @@ Build a comprehensive Badminton Court Finder & Queue Management System for Zambo
 - [x] Web folder structure (components, hooks, stores, lib)
 - [x] Mobile folder structure (services, hooks, store)
 - [x] Database schema design (27 tables)
- - [ ] Supabase project setup and migration (in-progress)
-	 - Notes: Added server middleware (`src/middleware.ts`) plan to run session refresh on each request. Next steps: create Supabase project, run `supabase db reset` / apply SQL migrations from `backend/migrations` or `web/supabase/migrations`, and enable RLS policies.
-	- Update: Root middleware file was added under `web/src/middleware.ts` to call the existing `updateSession` helper. To apply migrations locally:
-		1. Install Supabase CLI: `npm install -g supabase`
-		2. Login and link project: `supabase login` then `supabase link --project-ref <ref>`
-		3. Run migrations: `supabase db reset --file backend/supabase/migrations/001_initial_schema.sql` (or use `supabase db push` depending on workflow).
-		4. Seed data: `psql <seed file>` or use `supabase` CLI seed commands.
-- [ ] Authentication flow (signup, login, forgot password)
-- [ ] User profile management
-- [ ] Player profile with skill level
+- [x] Supabase project setup and migration
+	- ✅ V2 schema applied via `supabase db push`
+	- ✅ Database confirmed up to date
+	- ✅ All tables created with RLS policies
+	- ✅ Sample data inserted (2 venues, 8 courts)
+- [x] Authentication flow (signup, login, forgot password)
+	- ✅ Supabase Auth integrated
+	- ✅ Google OAuth supported
+	- ✅ Auto-profile creation via triggers
+	- ✅ Fixed users→profiles table references
+- [x] User profile management
+	- ✅ Profile onboarding flow complete
+	- ✅ Avatar upload to Supabase Storage
+- [x] Player profile with skill level
+	- ✅ Skill level selection (1-10)
+	- ✅ Play styles, birth date, gender
 
 ### Phase 2: Court Discovery & Display
 **Goal:** Allow players to find and view courts
@@ -143,13 +149,13 @@ Build a comprehensive Badminton Court Finder & Queue Management System for Zambo
 - Payment completion rate
 - Average court rating
 - App store ratings (mobile)
-
+m
 ## Risk Mitigation
 
 | Risk | Mitigation |
 |------|------------|
 | Real-time sync issues | Fallback to polling, conflict resolution |
-| Payment failures | Retry mechanism, manual reconciliation |
+| Payment failures | Retrys
 | Low venue adoption | Free tier, comprehensive onboarding |
 | Performance issues | Caching, pagination, lazy loading |
 | Security breaches | Regular audits, encryption, RBAC |
