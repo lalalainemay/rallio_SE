@@ -352,7 +352,7 @@ export default function VenueMap({ venues }: VenueMapProps) {
           )}
           <span className="text-sm font-medium">
             {userLocation ? 'Update Location' : 'My Location'}
-          )}
+          </span>
         </button>
       </div>
     </>
