@@ -14,6 +14,11 @@ interface Venue {
   courtCount: number
   minPrice: number
   maxPrice: number
+  averageRating?: number
+  totalReviews?: number
+  opening_hours?: Record<string, { open: string; close: string }> | null
+  distance?: number
+  amenities?: string[]
 }
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
@@ -47,10 +52,19 @@ export default function MapViewPage() {
         address,
         latitude,
         longitude,
+        opening_hours,
         courts(
           id,
           hourly_rate,
-          is_active
+          is_active,
+          court_ratings(
+            overall_rating
+          ),
+          court_amenities(
+            amenity:amenities(
+              name
+            )
+          )
         )
       `)
       .eq('is_active', true)
@@ -59,6 +73,25 @@ export default function MapViewPage() {
       const transformedData = data.map(venue => {
         const activeCourts = venue.courts?.filter((c: any) => c.is_active) || []
         const prices = activeCourts.map((c: any) => c.hourly_rate).filter(Boolean)
+        
+        // Calculate average rating across all courts
+        const allRatings = activeCourts.flatMap((c: any) => 
+          c.court_ratings?.map((r: any) => r.overall_rating) || []
+        )
+        const averageRating = allRatings.length > 0
+          ? allRatings.reduce((sum: number, r: number) => sum + r, 0) / allRatings.length
+          : undefined
+        
+        // Collect unique amenities from all courts
+        const amenitiesSet = new Set<string>()
+        activeCourts.forEach((c: any) => {
+          c.court_amenities?.forEach((ca: any) => {
+            if (ca.amenity?.name) {
+              amenitiesSet.add(ca.amenity.name)
+            }
+          })
+        })
+        
         return {
           id: venue.id,
           name: venue.name,
@@ -67,7 +100,11 @@ export default function MapViewPage() {
           longitude: venue.longitude || 0,
           courtCount: activeCourts.length,
           minPrice: prices.length > 0 ? Math.min(...prices) : 0,
-          maxPrice: prices.length > 0 ? Math.max(...prices) : 0
+          maxPrice: prices.length > 0 ? Math.max(...prices) : 0,
+          averageRating,
+          totalReviews: allRatings.length,
+          opening_hours: venue.opening_hours,
+          amenities: Array.from(amenitiesSet)
         }
       }).filter(v => v.latitude && v.longitude)
 
