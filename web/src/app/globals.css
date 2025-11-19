@@ -148,3 +148,29 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-gray-400);
 }
+
+/* Leaflet Marker Cluster Styles */
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+  transition: transform 0.3s ease-out, opacity 0.3s ease-in;
+}
+
+.leaflet-cluster-spider-leg {
+  stroke: #222;
+  stroke-width: 1.5;
+  stroke-opacity: 0.5;
+}
+
+.custom-cluster-icon {
+  background: transparent;
+  border: none;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
