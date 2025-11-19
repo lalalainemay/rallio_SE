@@ -101,7 +101,7 @@ function isVenueOpen(openingHours: Record<string, { open: string; close: string 
   if (!openingHours) return false
   
   const now = new Date()
-  const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'lowercase' })
+  const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
   const currentTime = format(now, 'HH:mm')
   
   const todayHours = openingHours[dayOfWeek]
