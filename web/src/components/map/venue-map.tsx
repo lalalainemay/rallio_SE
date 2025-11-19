@@ -3,12 +3,17 @@
 import { useState, useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
-import MarkerClusterGroup from '@changey/react-leaflet-markercluster'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import 'leaflet/dist/leaflet.css'
-import 'leaflet.markercluster/dist/MarkerCluster.css'
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
+
+// Dynamic import for MarkerClusterGroup to avoid SSR issues
+let MarkerClusterGroup: any = null
+if (typeof window !== 'undefined') {
+  MarkerClusterGroup = require('@changey/react-leaflet-markercluster').default
+  require('leaflet.markercluster/dist/MarkerCluster.css')
+  require('leaflet.markercluster/dist/MarkerCluster.Default.css')
+}
 
 interface Venue {
   id: string
@@ -194,22 +199,23 @@ export default function VenueMap({ venues }: VenueMapProps) {
         )}
 
         {/* Venue Markers with Clustering */}
-        <MarkerClusterGroup
-          chunkedLoading
-          maxClusterRadius={60}
-          spiderfyOnMaxZoom={true}
-          showCoverageOnHover={false}
-          zoomToBoundsOnClick={true}
-        >
-          {venues.map((venue) => (
-          <Marker
-            key={venue.id}
-            position={[venue.latitude, venue.longitude]}
-            icon={createCustomIcon(venue.minPrice)}
-            eventHandlers={{
-              click: () => setSelectedVenue(venue)
-            }}
+        {MarkerClusterGroup ? (
+          <MarkerClusterGroup
+            chunkedLoading={true}
+            maxClusterRadius={60}
+            spiderfyOnMaxZoom={true}
+            showCoverageOnHover={false}
+            zoomToBoundsOnClick={true}
           >
+            {venues.map((venue) => (
+            <Marker
+              key={venue.id}
+              position={[venue.latitude, venue.longitude]}
+              icon={createCustomIcon(venue.minPrice)}
+              eventHandlers={{
+                click: () => setSelectedVenue(venue)
+              }}
+            >
             <Popup maxWidth={280} minWidth={240}>
               <div className="p-2">
                 {/* Venue Name */}
@@ -323,9 +329,37 @@ export default function VenueMap({ venues }: VenueMapProps) {
                 </div>
               </div>
             </Popup>
-        </Marker>
-          ))}
-        </MarkerClusterGroup>
+          </Marker>
+            ))}
+          </MarkerClusterGroup>
+        ) : (
+          <>
+            {venues.map((venue) => (
+            <Marker
+              key={venue.id}
+              position={[venue.latitude, venue.longitude]}
+              icon={createCustomIcon(venue.minPrice)}
+              eventHandlers={{
+                click: () => setSelectedVenue(venue)
+              }}
+            >
+              <Popup maxWidth={280} minWidth={240}>
+                <div className="p-2">
+                  <h3 className="font-semibold text-gray-900 mb-1 text-base leading-tight">
+                    {venue.name}
+                  </h3>
+                  <Link
+                    href={`/courts/${venue.id}`}
+                    className="block mt-2 text-center py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    View Details
+                  </Link>
+                </div>
+              </Popup>
+            </Marker>
+            ))}
+          </>
+        )}
       </MapContainer>
 
       {/* Control Buttons */}
