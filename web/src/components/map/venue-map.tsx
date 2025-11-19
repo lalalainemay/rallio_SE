@@ -5,14 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import dynamic from 'next/dynamic'
 import 'leaflet/dist/leaflet.css'
-
-// Dynamic import for MarkerClusterGroup to avoid SSR issues
-const MarkerClusterGroup = dynamic(
-  () => import('./marker-cluster-group'),
-  { ssr: false }
-)
 
 interface Venue {
   id: string
@@ -200,23 +193,16 @@ export default function VenueMap({ venues }: VenueMapProps) {
           </Marker>
         )}
 
-        {/* Venue Markers with Clustering */}
-        <MarkerClusterGroup
-          chunkedLoading={true}
-          maxClusterRadius={60}
-          spiderfyOnMaxZoom={true}
-          showCoverageOnHover={false}
-          zoomToBoundsOnClick={true}
-        >
-          {venues.map((venue) => (
-            <Marker
-              key={venue.id}
-              position={[venue.latitude, venue.longitude]}
-              icon={createCustomIcon(venue.minPrice)}
-              eventHandlers={{
-                click: () => setSelectedVenue(venue)
-              }}
-            >
+        {/* Venue Markers */}
+        {venues.map((venue) => (
+          <Marker
+            key={venue.id}
+            position={[venue.latitude, venue.longitude]}
+            icon={createCustomIcon(venue.minPrice)}
+            eventHandlers={{
+              click: () => setSelectedVenue(venue)
+            }}
+          >
             <Popup maxWidth={280} minWidth={240}>
               <div className="p-2">
                 {/* Venue Name */}
@@ -330,9 +316,8 @@ export default function VenueMap({ venues }: VenueMapProps) {
                 </div>
               </div>
             </Popup>
-            </Marker>
-          ))}
-        </MarkerClusterGroup>
+          </Marker>
+        ))}
       </MapContainer>
 
       {/* Control Buttons */}
