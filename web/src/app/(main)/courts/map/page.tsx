@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 interface Venue {
   id: string
@@ -62,36 +63,40 @@ export default function MapViewPage() {
   }, [])
 
   const fetchVenues = async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from('venues')
-      .select(`
-        id,
-        name,
-        address,
-        latitude,
-        longitude,
-        opening_hours,
-        courts(
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('venues')
+        .select(`
           id,
-          hourly_rate,
-          is_active,
-          court_ratings(
-            overall_rating
-          ),
-          court_amenities(
-            amenity:amenities(
-              name
+          name,
+          address,
+          latitude,
+          longitude,
+          opening_hours,
+          courts(
+            id,
+            hourly_rate,
+            is_active,
+            court_ratings(
+              overall_rating
+            ),
+            court_amenities(
+              amenity:amenities(
+                name
+              )
             )
           )
-        )
-      `)
-      .eq('is_active', true)
+        `)
+        .eq('is_active', true)
 
-    console.log('Venues data:', data)
-    console.log('Venues error:', error)
+      if (error) {
+        console.error('Error fetching venues:', error)
+        setLoading(false)
+        return
+      }
 
-    if (!error && data) {
+      if (data) {
       const transformedData = data.map(venue => {
         const activeCourts = venue.courts?.filter((c: any) => c.is_active) || []
         const prices = activeCourts.map((c: any) => c.hourly_rate).filter(Boolean)
@@ -130,13 +135,14 @@ export default function MapViewPage() {
         }
       }).filter(v => v.latitude && v.longitude)
 
-      console.log('Transformed venues:', transformedData)
-      console.log('Venues count:', transformedData.length)
       setVenues(transformedData)
-    } else if (error) {
-      console.error('Error fetching venues:', error)
+      }
+      setLoading(false)
+    } catch (error) {
+      console.error('Unexpected error fetching venues:', error)
+      setVenues([])
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const handleClearFilters = () => {
@@ -154,7 +160,8 @@ export default function MapViewPage() {
   }
 
   return (
-    <div className="fixed inset-0 md:left-20 bg-gray-50 flex flex-col overflow-hidden z-10">
+    <ErrorBoundary>
+      <div className="fixed inset-0 md:left-20 bg-gray-50 flex flex-col overflow-hidden z-10">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0 z-20">
         <div className="flex items-center justify-between gap-4">
@@ -372,5 +379,6 @@ export default function MapViewPage() {
         </button>
       </div>
     </div>
+    </ErrorBoundary>
   )
 }

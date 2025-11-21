@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ReviewsSection } from '@/components/venue/reviews-section'
 import { VenueDetailsClient } from './venue-details-client'
+import { ImageGallery } from '@/components/venue/image-gallery'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -49,6 +50,13 @@ export default async function VenueDetailPage({ params }: { params: Promise<{ id
 
   const openingHours = formatOpeningHours(venue.opening_hours)
 
+  // Mock images for demonstration - in production, these would come from the database
+  const venueImages = [
+    'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=2070',
+    'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=2070',
+    'https://images.unsplash.com/photo-1609710228159-0fa9bd7c0827?q=80&w=2070',
+  ]
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -61,12 +69,8 @@ export default async function VenueDetailPage({ params }: { params: Promise<{ id
         <h1 className="text-lg font-semibold text-gray-900">Venue Details</h1>
       </header>
 
-      {/* Venue Image */}
-      <div className="h-48 md:h-64 bg-gray-100 flex items-center justify-center">
-        <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-        </svg>
-      </div>
+      {/* Image Gallery */}
+      <ImageGallery images={venueImages} venueName={venue.name} />
 
       {/* Content - Two Column Layout */}
       <div className="p-6 max-w-7xl mx-auto">

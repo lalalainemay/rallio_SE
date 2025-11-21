@@ -141,13 +141,24 @@ export default function VenueMap({ venues }: VenueMapProps) {
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null)
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const [locationLoading, setLocationLoading] = useState(false)
-
-  console.log('VenueMap received venues:', venues)
-  console.log('Venues length:', venues?.length)
+  const [mapError, setMapError] = useState<string | null>(null)
 
   // Default center on Zamboanga City
   const defaultCenter: [number, number] = [6.9214, 122.0790]
   const defaultZoom = 13
+
+  // Validate venues data
+  if (!Array.isArray(venues)) {
+    console.error('Venues is not an array:', venues)
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+        <div className="text-center p-8">
+          <p className="text-red-600 font-medium">Error loading map data</p>
+          <p className="text-sm text-gray-600 mt-2">Invalid venues data format</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleGetLocation = () => {
     setLocationLoading(true)
@@ -167,6 +178,26 @@ export default function VenueMap({ venues }: VenueMapProps) {
     }
   }
 
+  if (mapError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+        <div className="text-center p-8">
+          <p className="text-red-600 font-medium">Error loading map</p>
+          <p className="text-sm text-gray-600 mt-2">{mapError}</p>
+          <button
+            onClick={() => {
+              setMapError(null)
+              window.location.reload()
+            }}
+            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+          >
+            Reload Map
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <MapContainer
@@ -174,10 +205,14 @@ export default function VenueMap({ venues }: VenueMapProps) {
         zoom={defaultZoom}
         style={{ height: '100%', width: '100%', minHeight: '400px' }}
         zoomControl={true}
+        whenReady={() => console.log('Map is ready')}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          eventHandlers={{
+            tileerror: () => setMapError('Failed to load map tiles')
+          }}
         />
 
         <FitBounds venues={venues} userLocation={userLocation} />
