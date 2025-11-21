@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { completeProfile, updatePlayerProfile } from '@/app/actions/profile-actions'
 
 type SetupStep = 'welcome' | 'intro' | 'details' | 'player-info' | 'play-styles' | 'skill-intro' | 'skill-level'
 
@@ -199,36 +200,32 @@ export default function SetupProfilePage() {
         }
       }
 
-      // Update profile
-      const { error: userError } = await supabase
-        .from('profiles')
-        .update({
-          display_name: `${profileData.firstName} ${profileData.lastName}`,
-          first_name: profileData.firstName,
-          last_name: profileData.lastName,
-          avatar_url: avatarUrl,
-          profile_completed: true,
-        })
-        .eq('id', user?.id)
+      // Use server action to update profile (includes cache invalidation)
+      const profileResult = await completeProfile({
+        displayName: `${profileData.firstName} ${profileData.lastName}`,
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        avatarUrl: avatarUrl,
+      })
 
-      if (userError) throw userError
+      if (!profileResult.success) {
+        throw new Error(profileResult.error || 'Failed to complete profile')
+      }
 
-      // Update player profile
-      const { error: playerError } = await supabase
-        .from('players')
-        .update({
-          birth_date: profileData.birthDate || null,
-          gender: profileData.gender || null,
-          skill_level: profileData.skillLevel || 5,
-          play_style: profileData.playStyles.join(','),
-          bio: profileData.bio || null,
-        })
-        .eq('user_id', user.id)
+      // Update player profile using server action
+      const playerResult = await updatePlayerProfile({
+        birthDate: profileData.birthDate ? new Date(profileData.birthDate) : undefined,
+        gender: profileData.gender || undefined,
+        skillLevel: profileData.skillLevel || 5,
+        playStyle: profileData.playStyles.join(','),
+      })
 
-      if (playerError) throw playerError
+      if (!playerResult.success) {
+        console.error('Player profile update error:', playerResult.error)
+        // Don't fail the entire flow if player update fails
+      }
 
-      // Refresh to clear cached data, then navigate
-      router.refresh()
+      // Navigate to home (cache already invalidated by server action)
       router.push('/home')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save profile')
@@ -239,15 +236,11 @@ export default function SetupProfilePage() {
 
   const handleSkip = async () => {
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use server action to mark profile as completed (includes cache invalidation)
+      const result = await completeProfile()
 
-      if (user) {
-        // Mark profile as completed even when skipping
-        await supabase
-          .from('profiles')
-          .update({ profile_completed: true })
-          .eq('id', user.id)
+      if (!result.success) {
+        console.error('Error skipping profile setup:', result.error)
       }
 
       router.push('/home')

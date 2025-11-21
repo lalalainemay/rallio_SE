@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { completeProfile } from '@/app/actions/profile-actions'
 
 export function ProfileCompletionBanner() {
   const [dismissed, setDismissed] = useState(false)
@@ -11,19 +11,17 @@ export function ProfileCompletionBanner() {
 
   const handleDismiss = async () => {
     try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use server action to mark profile as completed (includes cache invalidation)
+      const result = await completeProfile()
 
-      if (user) {
-        // Mark profile as completed when dismissed
-        await supabase
-          .from('profiles')
-          .update({ profile_completed: true })
-          .eq('id', user.id)
+      if (result.success) {
+        setDismissed(true)
+        // Cache already invalidated by server action
+        router.refresh()
+      } else {
+        console.error('Failed to dismiss banner:', result.error)
+        setDismissed(true) // Dismiss anyway for better UX
       }
-
-      setDismissed(true)
-      router.refresh()
     } catch (err) {
       console.error('Error dismissing banner:', err)
       setDismissed(true) // Dismiss anyway for better UX

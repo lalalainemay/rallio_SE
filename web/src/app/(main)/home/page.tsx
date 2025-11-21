@@ -7,11 +7,15 @@ export const metadata = {
   description: 'Find badminton courts near you',
 }
 
+// Disable caching to always show fresh profile completion status
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export default async function HomePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Get user profile
+  // Get user profile - with fresh data to show correct banner state
   const { data: userProfile } = await supabase
     .from('profiles')
     .select('display_name, avatar_url, phone, profile_completed')
