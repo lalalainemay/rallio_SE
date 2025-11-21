@@ -68,7 +68,7 @@ export async function completeProfile(data?: {
 
 /**
  * Server action to update player profile data
- * Note: Player record should be created by database trigger on signup
+ * Creates player record if it doesn't exist (handles cases where signup trigger failed)
  */
 export async function updatePlayerProfile(data: {
   birthDate?: Date
@@ -88,37 +88,85 @@ export async function updatePlayerProfile(data: {
     console.log('[updatePlayerProfile] Updating player profile for user:', user.id, data)
 
     // First check if player record exists
-    const { data: existingPlayer } = await supabase
+    const { data: existingPlayer, error: selectError } = await supabase
       .from('players')
       .select('id')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (!existingPlayer) {
-      console.error('[updatePlayerProfile] Player record not found for user:', user.id)
-      // Player record should have been created by database trigger
-      // If it doesn't exist, we can't create it due to RLS policy
-      return { success: false, error: 'Player profile not initialized. Please contact support.' }
+    if (selectError) {
+      console.error('[updatePlayerProfile] Error checking player record:', selectError)
+      return { success: false, error: selectError.message }
     }
 
-    // Update existing player data
-    const { error, data: result } = await supabase
-      .from('players')
-      .update({
-        birth_date: data.birthDate,
-        gender: data.gender,
-        skill_level: data.skillLevel,
-        play_style: data.playStyle,
-      })
-      .eq('user_id', user.id)
-      .select()
+    let result
+    let error
+
+    if (!existingPlayer) {
+      console.log('[updatePlayerProfile] Player record not found, creating new one')
+
+      // Create new player record (requires INSERT policy to be applied)
+      const insertResult = await supabase
+        .from('players')
+        .insert({
+          user_id: user.id,
+          birth_date: data.birthDate,
+          gender: data.gender,
+          skill_level: data.skillLevel,
+          play_style: data.playStyle,
+        })
+        .select()
+
+      error = insertResult.error
+      result = insertResult.data
+
+      if (error) {
+        console.error('[updatePlayerProfile] Error creating player profile:', error)
+        return {
+          success: false,
+          error: `Failed to create player profile: ${error.message}. Please ensure the database migration has been applied.`
+        }
+      }
+
+      // Also assign default player role if not exists
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: user.id,
+          role_id: (await supabase.from('roles').select('id').eq('name', 'player').single()).data?.id
+        })
+        .select()
+        .maybeSingle()
+
+      if (roleError && !roleError.message.includes('duplicate')) {
+        console.error('[updatePlayerProfile] Error assigning player role:', roleError)
+        // Don't fail the entire operation if role assignment fails
+      }
+    } else {
+      console.log('[updatePlayerProfile] Player record found, updating')
+
+      // Update existing player data
+      const updateResult = await supabase
+        .from('players')
+        .update({
+          birth_date: data.birthDate,
+          gender: data.gender,
+          skill_level: data.skillLevel,
+          play_style: data.playStyle,
+        })
+        .eq('user_id', user.id)
+        .select()
+
+      error = updateResult.error
+      result = updateResult.data
+    }
 
     if (error) {
       console.error('[updatePlayerProfile] Error updating player profile:', error)
       return { success: false, error: error.message }
     }
 
-    console.log('[updatePlayerProfile] Successfully updated player profile:', result)
+    console.log('[updatePlayerProfile] Successfully saved player profile:', result)
 
     // Revalidate profile-related paths
     revalidatePath('/profile')

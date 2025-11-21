@@ -1,18 +1,25 @@
-# How to Apply Migration 002: Add Players INSERT Policy
+# 🚨 CRITICAL: Apply Migration 002 Immediately
 
 ## The Problem
-The `players` table is missing an INSERT policy in Row Level Security (RLS), which prevents users from creating player profiles during onboarding if the database trigger didn't create one.
+**Your profile completion is failing** because the `players` table is missing an INSERT policy in Row Level Security (RLS). This prevents users from creating player profiles during onboarding if the database trigger didn't create one.
+
+**Error you're seeing:** "Player profile not initialized. Please contact support."
 
 ## The Solution
-Migration `002_add_players_insert_policy.sql` adds the missing INSERT policy.
+Migration `002_add_players_insert_policy.sql` adds the missing INSERT policy. **You MUST apply this migration to fix profile completion.**
 
-## How to Apply (Supabase Dashboard)
+---
 
+## 📋 How to Apply (Supabase Dashboard) - DO THIS NOW
+
+### Step 1: Open Supabase SQL Editor
 1. Go to your Supabase Dashboard: https://supabase.com/dashboard
-2. Select your project
-3. Click on "SQL Editor" in the left sidebar
-4. Click "New Query"
-5. Copy and paste the contents of `002_add_players_insert_policy.sql`:
+2. Select your **Rallio** project
+3. Click on **"SQL Editor"** in the left sidebar
+4. Click **"New Query"**
+
+### Step 2: Run the Migration
+5. Copy and paste this SQL code:
 
 ```sql
 -- Add INSERT policy for players table
@@ -24,8 +31,8 @@ CREATE POLICY "Users can insert own player profile" ON players
   WITH CHECK (auth.uid() = user_id);
 ```
 
-6. Click "Run" to execute the migration
-7. You should see a success message
+6. Click **"Run"** (or press Cmd/Ctrl + Enter)
+7. You should see: ✅ **"Success. No rows returned"**
 
 ## Verify the Policy was Created
 
