@@ -31,26 +31,67 @@ Build a comprehensive Badminton Court Finder & Queue Management System for Zambo
 	- ✅ Skill level selection (1-10)
 	- ✅ Play styles, birth date, gender
 
-### Phase 2: Court Discovery & Display
+### Phase 2: Court Discovery & Display - 85% COMPLETE ✅
 **Goal:** Allow players to find and view courts
 
-- [ ] Venue and court data models
-- [ ] Court listing page with filters
-- [ ] Mapbox integration for location-based search
-- [ ] Court detail page with amenities, pricing, photos
-- [ ] Distance calculation and sorting
-- [ ] Court availability calendar
+- [x] Venue and court data models (API client in `/lib/api/`)
+- [x] Court listing page with filters (`/courts/page.tsx`)
+- [x] Leaflet integration for location-based search (OpenStreetMap tiles)
+- [x] Court detail page with amenities, pricing, photos (`/courts/[id]/page.tsx`)
+- [x] Distance calculation and sorting (PostGIS `nearby_venues()` function)
+- [x] Court availability calendar (integrated into booking flow)
+- [ ] Enhanced filtering (price range sliders, amenity checkboxes)
+- [ ] Mobile implementation
 
-### Phase 3: Reservations & Payments
+**Key Achievements:**
+- Leaflet map with custom markers and clustering
+- PostGIS geospatial queries for efficient radius search
+- Dynamic venue detail pages with image galleries
+- SSR handling for client-only map components
+
+### Phase 3: Reservations & Payments - 70% COMPLETE 🚧
 **Goal:** Enable court booking and payment processing
 
-- [ ] Reservation creation flow
-- [ ] Time slot selection with conflict prevention
-- [ ] PayMongo integration (GCash, Maya, QR codes)
-- [ ] Payment confirmation webhooks
-- [ ] Booking confirmation and reminders
-- [ ] Cancellation and refund flow
-- [ ] Split payment system for groups
+- [x] Reservation creation flow (`/courts/[id]/book/`)
+- [x] Time slot selection with conflict prevention
+  - Calendar UI component with date picker
+  - TimeSlotGrid component with real-time availability
+  - Database exclusion constraint prevents double booking
+- [x] PayMongo integration (GCash, Maya)
+  - Custom PayMongo client library (`/lib/paymongo/`)
+  - Payment source creation (GCash, Maya)
+  - Checkout URL generation with QR codes
+- [x] Payment confirmation webhooks (`/api/webhooks/paymongo/`)
+  - Handles `source.chargeable`, `payment.paid`, `payment.failed`
+  - Webhook signature verification
+  - Idempotency handling for duplicate events
+- [x] Booking management pages (`/bookings`, `/reservations`)
+- [x] Cancellation flow (server action)
+- [x] Database-level double booking prevention (migration 004)
+  - Exclusion constraint using btree_gist
+  - Validation triggers
+  - Active reservations and payment summary views
+- [x] Payment expiration function (15-minute timeout)
+- [ ] Payment receipt email notifications
+- [ ] Booking reminder notifications
+- [ ] Split payment system backend implementation
+- [ ] Refund flow for cancellations
+- [ ] Payment expiration automation (Edge Function/cron job)
+- [ ] QR code image generation (currently using PayMongo URLs)
+
+**Key Achievements:**
+- Complete booking flow from court selection to payment
+- Robust double booking prevention at database level
+- PayMongo webhook integration with idempotency
+- Real-time availability checking
+- Split payment database schema ready (UI partial, backend incomplete)
+
+**Technical Debt & Known Issues:**
+- Migration 005 (RLS policies) created but not applied
+- Payment expiration function exists but not automated (needs scheduled job)
+- Split payment UI designed but backend logic incomplete
+- No email/SMS notifications yet
+- Cash payment handling not implemented
 
 ### Phase 4: Queue Management
 **Goal:** Real-time queue sessions for pickup games

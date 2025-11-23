@@ -206,7 +206,7 @@ export default function SetupProfilePage() {
         firstName: profileData.firstName,
         lastName: profileData.lastName,
         avatarUrl: avatarUrl,
-        phone: profileData.phoneNumber || undefined,
+        phone: profileData.phone || undefined,
       })
 
       if (!profileResult.success) {

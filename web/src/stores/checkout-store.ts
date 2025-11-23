@@ -90,8 +90,10 @@ export const useCheckoutStore = create<CheckoutState>()(
 
       setBookingData: (data) => {
         set({
+          ...initialState,
           bookingData: data,
-          playerCount: Math.min(2, data.capacity) // Default to 2 players or capacity
+          currentStep: 'details',
+          playerCount: Math.min(2, data.capacity), // Default to 2 players or capacity
         })
       },
 
@@ -194,10 +196,10 @@ export const useCheckoutStore = create<CheckoutState>()(
       name: 'checkout-storage',
       partialize: (state) => ({
         bookingData: state.bookingData,
-        currentStep: state.currentStep,
         isSplitPayment: state.isSplitPayment,
         playerCount: state.playerCount,
-        paymentMethod: state.paymentMethod,
+        // DO NOT persist paymentMethod - user must select it fresh each time
+        // paymentMethod: state.paymentMethod,
       }),
     }
   )

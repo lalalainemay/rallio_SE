@@ -1,10 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useCheckoutStore } from '@/stores/checkout-store'
+import { createReservationAction } from '@/app/actions/reservations'
+import { initiatePaymentAction } from '@/app/actions/payments'
+import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 
 export function PaymentProcessing() {
+  const router = useRouter()
   const {
     bookingData,
     isSplitPayment,
@@ -14,43 +19,377 @@ export function PaymentProcessing() {
     getPerPlayerAmount,
     getTotalAmount,
     setCurrentStep,
+    setBookingReference,
   } = useCheckoutStore()
 
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [paymentStatus, setPaymentStatus] = useState<'pending' | 'processing' | 'success'>('pending')
+  const [error, setError] = useState<string | null>(null)
+  const [reservationId, setReservationId] = useState<string | null>(null)
+  const [isRetrying, setIsRetrying] = useState(false)
+
+  // Use useRef to prevent re-renders and useEffect loops
+  const hasInitialized = useRef(false)
+  const retryAttempts = useRef(0)
+  const MAX_RETRIES = 1 // Allow 1 retry for transient errors
 
   useEffect(() => {
-    // Simulate QR code generation
-    // In real implementation, this would call PayMongo API to create a payment link
-    const generateQRCode = async () => {
-      setLoading(true)
-      try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1500))
+    // Create reservation and initiate payment
+    const initializePayment = async () => {
+      // Prevent double initialization using ref (doesn't cause re-renders)
+      if (hasInitialized.current) {
+        console.log('Payment initialization already started, skipping...')
+        return
+      }
 
-        // Mock QR code URL (in production, this comes from PayMongo)
-        setQrCodeUrl('https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=PAYMONGO_PAYMENT_LINK')
-        setPaymentStatus('processing')
-      } catch (error) {
-        console.error('Failed to generate QR code:', error)
-      } finally {
+      // Guard clause: Only proceed if we have valid booking data
+      if (!bookingData) {
+        console.warn('Payment initialization skipped: No booking data available')
+        return
+      }
+
+      // CRITICAL: Only initialize if payment method has been selected
+      if (!paymentMethod) {
+        console.warn('Payment initialization skipped: No payment method selected yet')
+        return
+      }
+
+      // Validate all required booking data fields
+      if (!bookingData.courtId || !bookingData.venueId || !bookingData.date ||
+          !bookingData.startTime || !bookingData.endTime) {
+        console.error('Payment initialization error: Missing required booking data fields', bookingData)
+        setError('Invalid booking data. Please go back and select a time slot again.')
         setLoading(false)
+        return
+      }
+
+      // Mark as initialized immediately to prevent race conditions
+      hasInitialized.current = true
+      setLoading(true)
+      setError(null)
+
+      try {
+        // Get the current user
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          throw new Error('User not authenticated')
+        }
+
+        // Step 1: Create the reservation
+        // Ensure date is a Date object (might be string from localStorage)
+        const bookingDate = typeof bookingData.date === 'string'
+          ? new Date(bookingData.date)
+          : bookingData.date
+
+        if (Number.isNaN(bookingDate.getTime())) {
+          console.error('Invalid booking date detected:', bookingData.date)
+          throw new Error('Invalid booking date. Please select your time slot again.')
+        }
+
+        const [startHour, startMinute] = bookingData.startTime.split(':').map(Number)
+        const [endHour, endMinute] = bookingData.endTime.split(':').map(Number)
+
+        const startDateTime = new Date(bookingDate.getTime())
+        startDateTime.setHours(startHour, startMinute ?? 0, 0, 0)
+
+        const endDateTime = new Date(bookingDate.getTime())
+        endDateTime.setHours(endHour, endMinute ?? 0, 0, 0)
+
+        // Handle overnight bookings gracefully (should not typically happen but avoids zero-length ranges)
+        if (endDateTime <= startDateTime) {
+          endDateTime.setDate(endDateTime.getDate() + 1)
+        }
+
+        const startTimeISO = startDateTime.toISOString()
+        const endTimeISO = endDateTime.toISOString()
+
+        console.log('Creating reservation with data:', {
+          courtId: bookingData.courtId,
+          userId: user.id,
+          startTimeISO,
+          endTimeISO,
+          totalAmount: getTotalAmount(),
+        })
+
+        const reservationResult = await createReservationAction({
+          courtId: bookingData.courtId,
+          userId: user.id,
+          startTimeISO,
+          endTimeISO,
+          totalAmount: getTotalAmount(),
+          numPlayers: isSplitPayment ? playerCount : 1,
+          paymentType: isSplitPayment ? 'split' : 'full',
+          paymentMethod,
+          notes: isSplitPayment ? `Split payment with ${playerCount} players` : undefined,
+        })
+
+        if (!reservationResult.success || !reservationResult.reservationId) {
+          console.error('Reservation creation failed:', {
+            error: reservationResult.error,
+            bookingData: {
+              courtId: bookingData.courtId,
+              courtName: bookingData.courtName,
+              venueName: bookingData.venueName,
+              startTime: startTimeISO,
+              endTime: endTimeISO,
+            },
+            userId: user.id,
+          })
+          throw new Error(reservationResult.error || 'Failed to create reservation')
+        }
+
+        const newReservationId = reservationResult.reservationId
+        setReservationId(newReservationId)
+        console.log('Reservation created successfully:', newReservationId)
+
+        // For cash payments, skip payment initiation
+        if (paymentMethod === 'cash') {
+          setLoading(false)
+          setPaymentStatus('processing')
+          setBookingReference(newReservationId.slice(0, 8), newReservationId)
+          return
+        }
+
+        // Step 2: Initiate payment for e-wallet
+        // Use the payment method selected by the user (gcash, maya, etc.)
+        const paymentResult = await initiatePaymentAction(newReservationId, 'gcash')
+
+        if (!paymentResult.success || !paymentResult.checkoutUrl) {
+          throw new Error(paymentResult.error || 'Failed to initiate payment')
+        }
+
+        // Set loading to false and update UI to show confirmation
+        setLoading(false)
+        setPaymentStatus('processing')
+        setBookingReference(newReservationId.slice(0, 8), newReservationId)
+
+        // Store checkout URL for manual redirect
+        sessionStorage.setItem('paymongoCheckoutUrl', paymentResult.checkoutUrl)
+
+        // Immediate redirect to prevent any state update issues
+        // The 2-second delay was causing potential error flashes
+        window.location.href = paymentResult.checkoutUrl
+      } catch (err) {
+        console.error('Payment initialization error:', err)
+        const errorMessage = err instanceof Error ? err.message : 'Payment initialization failed'
+        setError(errorMessage)
+        setLoading(false)
+
+        // Auto-retry for transient errors (not user-facing errors like "already booked" or PayMongo config errors)
+        const isTransientError = !errorMessage.includes('already booked') &&
+                                !errorMessage.includes('Invalid booking data') &&
+                                !errorMessage.includes('currently unavailable') &&
+                                !errorMessage.includes('Pay with Cash')
+
+        if (isTransientError && retryAttempts.current < MAX_RETRIES) {
+          retryAttempts.current += 1
+          console.log(`Retrying payment initialization (attempt ${retryAttempts.current}/${MAX_RETRIES})...`)
+          setIsRetrying(true)
+
+          // Wait 2 seconds before retrying
+          setTimeout(() => {
+            hasInitialized.current = false
+            setError(null)
+            setLoading(true)
+            setIsRetrying(false)
+            // Trigger re-initialization
+            initializePayment()
+          }, 2000)
+        } else {
+          // Reset initialization flag to allow manual retry
+          hasInitialized.current = false
+          setIsRetrying(false)
+        }
       }
     }
 
-    if (paymentMethod === 'e-wallet') {
-      generateQRCode()
-    } else {
-      // For cash payments, skip QR generation
-      setLoading(false)
-      setPaymentStatus('processing')
-    }
-  }, [paymentMethod])
+    initializePayment()
+    // Note: getTotalAmount and setBookingReference are stable Zustand store functions
+    // They don't need to be in the dependency array
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingData, paymentMethod])
 
+  // Manual retry function
+  const handleRetry = () => {
+    console.log('Manual retry triggered by user')
+    hasInitialized.current = false
+    retryAttempts.current = 0
+    setError(null)
+    setLoading(true)
+    setReservationId(null)
+    // Trigger re-initialization by updating state
+    window.location.reload() // Simple approach: reload the page
+  }
+
+  // Don't render anything if no booking data
   if (!bookingData) return null
 
+  // Don't render anything if payment method hasn't been selected yet
+  // This prevents the component from showing premature UI
+  if (!paymentMethod) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+          <div className="flex items-start gap-3">
+            <svg className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h3 className="font-semibold text-yellow-900 text-lg mb-2">Payment Method Required</h3>
+              <p className="text-sm text-yellow-800">
+                Please go back and select a payment method (E-Wallet or Cash) before proceeding to payment processing.
+              </p>
+              <button
+                onClick={() => setCurrentStep('payment')}
+                className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded-lg font-medium hover:bg-yellow-700 transition-colors"
+              >
+                Go Back to Payment Method
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const amountToPay = isSplitPayment ? getPerPlayerAmount() : getTotalAmount()
+
+  // Show loading/redirecting state for e-wallet payments
+  if (loading && paymentMethod === 'e-wallet') {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white border border-primary/20 rounded-xl p-6">
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary/20 border-t-primary mb-6" />
+            <h3 className="font-semibold text-gray-900 text-xl mb-2">
+              {paymentStatus === 'processing' ? 'Redirecting to Payment...' : 'Processing Booking...'}
+            </h3>
+            <p className="text-sm text-gray-600 text-center max-w-md">
+              {paymentStatus === 'processing'
+                ? 'Redirecting you to secure payment...'
+                : 'Creating your reservation and preparing payment checkout...'
+              }
+            </p>
+            {reservationId && (
+              <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4 w-full max-w-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm font-medium text-green-900">Reservation Created</p>
+                </div>
+                <p className="text-xs text-green-700">
+                  Booking Reference: <span className="font-mono font-bold">{reservationId.slice(0, 8).toUpperCase()}</span>
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show retry indicator
+  if (isRetrying) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white border border-yellow-200 rounded-xl p-6">
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-yellow-200 border-t-yellow-600 mb-4" />
+            <h3 className="font-semibold text-yellow-900 text-lg mb-2">Retrying...</h3>
+            <p className="text-sm text-yellow-800 text-center">
+              The booking encountered an error. Automatically retrying in a moment...
+            </p>
+            <p className="text-xs text-yellow-600 mt-2">
+              Attempt {retryAttempts.current} of {MAX_RETRIES}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white border border-red-200 rounded-xl p-6">
+          <div className="flex items-start gap-3">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-red-900 text-lg mb-2">Booking Failed</h3>
+              <p className="text-sm text-red-800 mb-4">{error}</p>
+
+              {/* Error-specific guidance */}
+              {error.includes('already booked') && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs text-red-700">
+                    <strong>Tip:</strong> The time slot you selected may have just been booked by another user,
+                    or there may be a pending reservation. Please try selecting a different time slot.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-3">
+                {/* Show retry button for non-conflict errors */}
+                {!error.includes('already booked') && (
+                  <button
+                    onClick={handleRetry}
+                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    Try Again
+                  </button>
+                )}
+
+                {/* Show "Try Different Time" for conflict errors */}
+                {error.includes('already booked') && (
+                  <button
+                    onClick={() => setCurrentStep('details')}
+                    className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    Choose Different Time
+                  </button>
+                )}
+
+                {/* Always show "Return to Court" if we have a venue ID */}
+                {bookingData?.venueId && (
+                  <button
+                    onClick={() => router.push(`/courts/${bookingData.venueId}`)}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors"
+                  >
+                    Return to Court
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Debug info (only shown in development) */}
+        {process.env.NODE_ENV === 'development' && (
+          <details className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <summary className="cursor-pointer text-sm font-medium text-gray-700">
+              Debug Information
+            </summary>
+            <div className="mt-2 text-xs text-gray-600 space-y-1">
+              <p><strong>Error:</strong> {error}</p>
+              <p><strong>Court ID:</strong> {bookingData?.courtId || 'N/A'}</p>
+              <p><strong>Venue ID:</strong> {bookingData?.venueId || 'N/A'}</p>
+              <p><strong>Date:</strong> {bookingData?.date ? new Date(bookingData.date).toISOString() : 'N/A'}</p>
+              <p><strong>Time:</strong> {bookingData?.startTime || 'N/A'} - {bookingData?.endTime || 'N/A'}</p>
+              <p><strong>Reservation ID:</strong> {reservationId || 'Not created'}</p>
+            </div>
+          </details>
+        )}
+      </div>
+    )
+  }
 
   // Single payment (no split)
   if (!isSplitPayment) {

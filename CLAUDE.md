@@ -146,13 +146,36 @@ rallio/
 
 ### Web (`/web/src`)
 - `app/` - Next.js App Router pages
+  - `app/(main)/courts/` - Court listing and detail pages
+  - `app/(main)/courts/[id]/book/` - Court booking page with time slot selection
+  - `app/(main)/bookings/` - User booking history and management
+  - `app/(main)/reservations/` - User reservations list
+  - `app/(main)/checkout/` - Checkout page with payment options
+  - `app/(main)/checkout/success/` - Payment success confirmation
+  - `app/(main)/checkout/failed/` - Payment failure page
+  - `app/actions/` - Server actions
+    - `payments.ts` - Payment creation and processing actions
+    - `reservations.ts` - Reservation management actions
+    - `profile-actions.ts` - Profile update actions
+  - `app/api/webhooks/paymongo/` - PayMongo webhook handler
 - `components/ui/` - Base UI components (shadcn/ui pattern)
+  - Includes: Button, Input, Card, Form, Alert, Calendar, Select, etc.
+- `components/booking/` - Booking-specific components
+  - `booking-form.tsx` - Main booking form with validation
+  - `time-slot-grid.tsx` - Time slot selector with availability
 - `components/checkout/` - Payment and checkout flow components
+  - `payment-processing.tsx` - Payment method selection and processing
 - `components/map/` - Map-related components (VenueMap, marker clustering)
 - `components/venue/` - Venue display components (ImageGallery, etc.)
 - `components/error-boundary.tsx` - Global error boundary for crash protection
 - `lib/supabase/` - Supabase client (browser, server, middleware)
-- `lib/api/` - API client functions (venues, courts data fetching)
+- `lib/paymongo/` - PayMongo client library
+  - `client.ts` - Payment API functions (createSource, createPayment)
+  - `types.ts` - TypeScript definitions for PayMongo API
+  - `index.ts` - Public exports
+- `lib/api/` - API client functions
+  - `venues.ts` - Venue and court data fetching
+  - `reservations.ts` - Reservation queries
 - `lib/utils.ts` - cn() utility for class names
 - `hooks/` - Custom React hooks
 - `stores/` - Zustand stores
@@ -175,10 +198,15 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY=
 PAYMONGO_SECRET_KEY=
+PAYMONGO_WEBHOOK_SECRET=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 **Note:** The project uses Leaflet with OpenStreetMap tiles (no API key required). Mapbox token is not needed for current implementation.
+
+**Important:**
+- `PAYMONGO_WEBHOOK_SECRET` is required in production for webhook signature verification
+- In development, webhook verification is bypassed (warning logged)
 
 ### Mobile (`.env`)
 ```
@@ -234,6 +262,49 @@ Also wrap in `ErrorBoundary` component for better error handling.
 **Cause:** Manually inserting profiles after `supabase.auth.signUp()`
 **Solution:** Remove manual profile inserts - the `handle_new_user()` trigger handles this automatically
 
+### Payment Expiration Not Automated
+**Cause:** `expire_old_payments()` function exists but requires manual execution
+**Solution:** Deploy as Supabase Edge Function or set up pg_cron scheduled job:
+```sql
+-- Using pg_cron (requires extension)
+SELECT cron.schedule(
+  'expire-old-payments',
+  '*/5 * * * *', -- Every 5 minutes
+  'SELECT expire_old_payments();'
+);
+```
+Alternative: Create Edge Function that runs on a schedule or triggered by external cron service
+
+### Split Payment Implementation Incomplete
+**Cause:** Database schema ready but backend logic not fully implemented
+**Solution:** Complete the following implementation steps:
+1. Server action to create payment splits and send invitations
+2. Participant payment tracking with deadline enforcement
+3. Auto-cancellation when payment deadline expires
+4. Email/SMS notifications to participants
+5. Partial refund handling when group booking fails
+**Current Status:** UI designed, database tables exist, backend logic pending
+
+### Double Booking Despite Exclusion Constraint
+**Cause:** Race condition between availability check and reservation insert
+**Solution:** The exclusion constraint will catch it, but handle the error gracefully:
+```typescript
+try {
+  await supabase.from('reservations').insert(reservation)
+} catch (error) {
+  if (error.code === '23P01') { // exclusion_violation
+    throw new Error('Time slot no longer available')
+  }
+}
+```
+
+### Webhook Idempotency Issues
+**Cause:** PayMongo may send duplicate webhook events
+**Solution:** Already implemented in `/api/webhooks/paymongo/route.ts`:
+- Check `payment.status === 'completed'` before processing
+- Set `processing` flag in metadata during webhook handling
+- Use 5-minute stale flag timeout for recovery
+
 ## Recent Database Migrations
 
 Beyond the initial schema (`001_initial_schema_v2.sql`), the following migrations have been applied:
@@ -241,24 +312,88 @@ Beyond the initial schema (`001_initial_schema_v2.sql`), the following migration
 - **`002_add_players_insert_policy.sql`** - Adds RLS INSERT policy for players table (fixes Google OAuth signup issues)
 - **`002_add_nearby_venues_function.sql`** - PostGIS function for efficient radius-based venue search
 - **`003_fix_court_availabilities.sql`** - Adds computed `date` column for easier availability queries
+- **`004_prevent_double_booking.sql`** ✅ APPLIED - Critical booking and payment fixes:
+  - Exclusion constraint `no_overlapping_reservations` using btree_gist extension
+  - Prevents overlapping reservations for same court (pending/confirmed status)
+  - `expire_old_payments()` function - expires payments older than 15 minutes
+  - Validation triggers for reservation overlap checking
+  - Database views: `active_reservations`, `payment_summary`
+  - Performance indexes for payment and reservation queries
+- **`005_add_missing_rls_policies.sql`** ⚠️ CREATED BUT NOT APPLIED
+  - Comprehensive RLS policies for reservations, payments, payment_splits
+  - Role-based access control (player, court_admin, queue_master, global_admin)
+  - **Action Required:** Apply this migration to enable security policies
 
 ## Development Status
 
-### Phase 1: Foundation & Authentication ✅ Complete
+### Phase 1: Foundation & Authentication ✅ 100% Complete
 - Email/password and Google OAuth authentication
 - Profile setup with skip option
 - Database triggers for automatic profile/player creation
 - RLS policies for secure data access
 - Avatar upload to Supabase Storage
+- Profile completion flow with banner reminder
 
-### Phase 2: Court Discovery & Display 🚧 In Progress
-- ✅ Court listing page with filters
-- ✅ Map view with Leaflet integration
-- ✅ Venue detail pages with image galleries
-- ✅ Geospatial search with PostGIS
-- 🚧 Booking flow implementation
+### Phase 2: Court Discovery & Display ✅ 85% Complete
+- ✅ Court listing page with filters (`/courts`)
+- ✅ Map view with Leaflet integration (custom markers, clustering)
+- ✅ Venue detail pages with image galleries (`/courts/[id]`)
+- ✅ Geospatial search with PostGIS (`nearby_venues()` RPC function)
+- ✅ Distance calculation and sorting
+- ✅ Availability calendar (integrated into booking flow)
+- ⚠️ Enhanced filtering pending (price range sliders, amenity checkboxes)
+- ⚠️ Mobile implementation pending
 
-### Next: Phase 3 - Reservations & Payments
-- Reservation creation and management
-- Payment integration with PayMongo
-- QR code generation for payments
+### Phase 3: Reservations & Payments 🚧 70% Complete
+**Completed:**
+- ✅ Full booking flow (`/courts/[id]/book`)
+  - Calendar date picker (shadcn/ui Calendar component)
+  - Time slot grid with real-time availability
+  - Booking notes and conflict detection
+- ✅ PayMongo integration
+  - Custom client library (`/lib/paymongo/`)
+  - GCash and Maya payment sources
+  - Checkout URL generation
+- ✅ Payment webhook handler (`/api/webhooks/paymongo/route.ts`)
+  - Handles `source.chargeable`, `payment.paid`, `payment.failed` events
+  - Signature verification with `PAYMONGO_WEBHOOK_SECRET`
+  - Idempotency handling for duplicate webhooks
+- ✅ Booking management
+  - My Bookings page (`/bookings`)
+  - My Reservations page (`/reservations`)
+  - Cancellation server action
+- ✅ Database protection
+  - Double booking prevention (exclusion constraint)
+  - Payment expiration function (15-minute timeout)
+  - Validation triggers and database views
+- ✅ Success/failure pages (`/checkout/success`, `/checkout/failed`)
+
+**In Progress / Pending:**
+- ⚠️ Split payment backend logic (database ready, UI partial)
+- ⚠️ Email notifications (booking confirmations, receipts)
+- ⚠️ SMS notifications
+- ⚠️ Payment expiration automation (requires Edge Function or cron job)
+- ⚠️ QR code image generation (currently using PayMongo URLs)
+- ⚠️ Cash payment handling
+- ⚠️ Booking modification/rescheduling
+- ⚠️ Refund flow for cancellations
+- ⚠️ RLS policy application (migration 005 created but not applied)
+
+### Next: Phase 4 - Queue Management
+- Queue session creation and management
+- Real-time queue updates with Supabase Realtime
+- Skill-based team balancing
+- Per-game payment splitting
+- Before answering, modifying code, or creating files, you must ALWAYS read and follow these documents:
+CLAUDE.md
+docs/planning.md
+docs/tasks.md
+docs/system-analysis/ (all files)
+Rules:
+Never start coding without reviewing these files first.
+Confirm which parts of the docs apply to the user’s request before generating code.
+If the request conflicts with the docs, warn the user and ask how to proceed.
+Always follow folder structure, tech stack, and conventions defined in the docs.
+After completing a task, check docs/tasks.md and suggest the next task.
+If the files cannot be found or haven't been loaded into the workspace, always ask the user to load or refresh the documentation first.
+At the beginning of each task, briefly state which documentation files you used or checked.

@@ -3,16 +3,15 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { DayPicker } from 'react-day-picker'
-import { format, addDays, startOfDay } from 'date-fns'
+import { format } from 'date-fns'
 import 'react-day-picker/dist/style.css'
-import { createClient } from '@/lib/supabase/client'
 import { useCheckoutStore } from '@/stores/checkout-store'
+import { getAvailableTimeSlotsAction } from '@/app/actions/reservations'
 
 interface TimeSlot {
-  id: string
-  start_time: string
-  end_time: string
-  is_reserved: boolean
+  time: string
+  available: boolean
+  price?: number
 }
 
 interface AvailabilityModalProps {
@@ -42,6 +41,7 @@ export function AvailabilityModal({
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([])
   const [loading, setLoading] = useState(false)
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null)
+  const [isBooking, setIsBooking] = useState(false)
 
   // Fetch available time slots for the selected date
   useEffect(() => {
@@ -49,27 +49,13 @@ export function AvailabilityModal({
       if (!selectedDate || !isOpen) return
 
       setLoading(true)
+      setSelectedSlot(null) // Clear selection when date changes
       try {
-        const supabase = createClient()
-        const startOfSelectedDay = startOfDay(selectedDate)
-        const endOfSelectedDay = addDays(startOfSelectedDay, 1)
-
-        const { data, error } = await supabase
-          .from('court_availabilities')
-          .select('*')
-          .eq('court_id', courtId)
-          .gte('start_time', startOfSelectedDay.toISOString())
-          .lt('start_time', endOfSelectedDay.toISOString())
-          .order('start_time', { ascending: true })
-
-        if (error) {
-          console.error('Error fetching time slots:', error)
-          setTimeSlots([])
-        } else {
-          setTimeSlots(data || [])
-        }
+        const slots = await getAvailableTimeSlotsAction(courtId, selectedDate.toISOString())
+        console.log('Fetched slots:', slots) // Debug log
+        setTimeSlots(slots)
       } catch (error) {
-        console.error('Error:', error)
+        console.error('Error fetching time slots:', error)
         setTimeSlots([])
       } finally {
         setLoading(false)
@@ -79,27 +65,45 @@ export function AvailabilityModal({
     fetchTimeSlots()
   }, [selectedDate, courtId, isOpen])
 
-  const formatTime = (dateString: string) => {
-    return format(new Date(dateString), 'h:mm a')
+  const formatTime = (time: string) => {
+    const [hours, minutes] = time.split(':').map(Number)
+    const period = hours >= 12 ? 'PM' : 'AM'
+    const displayHours = hours % 12 || 12
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`
+  }
+
+  const getEndTime = (startTime: string, durationHours: number = 1): string => {
+    const [hours, minutes] = startTime.split(':').map(Number)
+    const endHours = hours + durationHours
+    return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
   }
 
   const handleBook = () => {
-    if (selectedSlot) {
-      // Set booking data in checkout store
-      setBookingData({
-        courtId,
-        courtName,
-        venueId,
-        venueName,
-        date: selectedDate,
-        startTime: selectedSlot.start_time,
-        endTime: selectedSlot.end_time,
-        hourlyRate,
-        capacity,
-      })
+    if (selectedSlot && !isBooking) {
+      setIsBooking(true)
 
-      // Navigate to checkout page
-      router.push('/checkout')
+      try {
+        const endTime = getEndTime(selectedSlot.time)
+
+        // Set booking data in checkout store
+        setBookingData({
+          courtId,
+          courtName,
+          venueId,
+          venueName,
+          date: selectedDate,
+          startTime: selectedSlot.time,
+          endTime: endTime,
+          hourlyRate,
+          capacity,
+        })
+
+        // Navigate to checkout page
+        router.push('/checkout')
+      } catch (error) {
+        console.error('Error setting booking data:', error)
+        setIsBooking(false)
+      }
     }
   }
 
@@ -193,44 +197,71 @@ export function AvailabilityModal({
                     </div>
                   ) : (
                     <div className="max-h-96 overflow-y-auto divide-y divide-gray-100">
-                      {timeSlots.map((slot) => (
-                        <button
-                          key={slot.id}
-                          onClick={() => !slot.is_reserved && setSelectedSlot(slot)}
-                          disabled={slot.is_reserved}
-                          className={`w-full px-4 py-3 text-left transition-colors ${
-                            slot.is_reserved
-                              ? 'bg-gray-50 cursor-not-allowed opacity-60'
-                              : selectedSlot?.id === slot.id
-                              ? 'bg-primary text-white'
-                              : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <svg 
-                                className={`w-5 h-5 ${selectedSlot?.id === slot.id ? 'text-white' : 'text-gray-400'}`} 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              <div>
-                                <p className={`font-medium ${selectedSlot?.id === slot.id ? 'text-white' : 'text-gray-900'}`}>
-                                  {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
-                                </p>
-                                {slot.is_reserved && (
-                                  <p className="text-xs text-gray-500">Reserved</p>
+                      {timeSlots.map((slot, index) => {
+                        const endTime = getEndTime(slot.time)
+                        const isSelected = selectedSlot?.time === slot.time
+                        return (
+                          <button
+                            key={`${slot.time}-${index}`}
+                            onClick={() => slot.available && setSelectedSlot(slot)}
+                            disabled={!slot.available}
+                            className={`w-full px-4 py-3 text-left transition-colors ${
+                              !slot.available
+                                ? 'bg-gray-100 cursor-not-allowed opacity-70'
+                                : isSelected
+                                ? 'bg-primary text-white'
+                                : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {!slot.available ? (
+                                  <svg
+                                    className="w-5 h-5 text-gray-400"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-gray-400'}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
                                 )}
+                                <div>
+                                  <p className={`font-medium ${
+                                    !slot.available 
+                                      ? 'text-gray-500' 
+                                      : isSelected 
+                                      ? 'text-white' 
+                                      : 'text-gray-900'
+                                  }`}>
+                                    {formatTime(slot.time)} - {formatTime(endTime)}
+                                  </p>
+                                  {!slot.available && (
+                                    <p className="text-xs text-gray-500 font-medium">Reserved</p>
+                                  )}
+                                </div>
                               </div>
+                              <span className={`text-sm font-semibold ${
+                                !slot.available
+                                  ? 'text-gray-400'
+                                  : isSelected 
+                                  ? 'text-white' 
+                                  : 'text-gray-700'
+                              }`}>
+                                ₱{slot.price || hourlyRate}
+                              </span>
                             </div>
-                            <span className={`text-sm font-semibold ${selectedSlot?.id === slot.id ? 'text-white' : 'text-gray-700'}`}>
-                              ₱{hourlyRate}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -245,9 +276,9 @@ export function AvailabilityModal({
                 <div className="text-sm">
                   <p className="text-gray-600">
                     <span className="font-medium text-gray-900">Selected:</span>{' '}
-                    {format(selectedDate, 'MMM d, yyyy')} · {formatTime(selectedSlot.start_time)} - {formatTime(selectedSlot.end_time)}
+                    {format(selectedDate, 'MMM d, yyyy')} · {formatTime(selectedSlot.time)} - {formatTime(getEndTime(selectedSlot.time))}
                   </p>
-                  <p className="text-lg font-bold text-primary mt-1">₱{hourlyRate}</p>
+                  <p className="text-lg font-bold text-primary mt-1">₱{selectedSlot.price || hourlyRate}</p>
                 </div>
               )}
             </div>
@@ -260,10 +291,13 @@ export function AvailabilityModal({
               </button>
               <button
                 onClick={handleBook}
-                disabled={!selectedSlot}
-                className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!selectedSlot || isBooking}
+                className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                Book This Slot
+                {isBooking && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                )}
+                {isBooking ? 'Processing...' : 'Book This Slot'}
               </button>
             </div>
           </div>

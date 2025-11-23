@@ -79,17 +79,17 @@ export function VenueDetailsClient({ courts, venueId, venueName }: VenueDetailsC
                   </svg>
                   View Schedule
                 </button>
-                <Link
-                  href={`/courts/${venueId}/book?court=${court.id}`}
+                <button
+                  onClick={() => handleViewAvailability(court)}
                   className="border-2 border-primary text-primary text-center py-2.5 rounded-lg text-sm font-medium hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   Book
-                </Link>
+                </button>
                 <Link
-                  href={`/courts/${venueId}/queue?court=${court.id}`}
+                  href={`/queue/${court.id}`}
                   className="border border-gray-300 text-gray-700 text-center py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

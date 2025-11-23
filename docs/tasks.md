@@ -146,21 +146,23 @@
 
 ---
 
-## Phase 2: Court Discovery & Display
+## Phase 2: Court Discovery & Display - 85% Complete ✅
 
 ### Data Models
-- [ ] Create venue API functions
-- [ ] Create court API functions
-- [ ] Create court amenities lookup
-- [ ] Add court images handling
+- [x] Create venue API functions
+- [x] Create court API functions
+- [x] Create court amenities lookup
+- [x] Add court images handling
 
 ### Court Listing (Web)
-- [ ] Create courts listing page
-- [ ] Implement court card component
-- [ ] Add search input with filters
-- [ ] Add filter sidebar (price, type, amenities, indoor/outdoor)
-- [ ] Implement pagination or infinite scroll
-- [ ] Add sorting options (distance, price, rating)
+- [x] Create courts listing page
+- [x] Implement court card component
+- [x] Add search input with filters
+- [x] Add filter sidebar (price, type, amenities, indoor/outdoor)
+- [x] Implement pagination or infinite scroll
+- [x] Add sorting options (distance, price, rating)
+- [ ] Enhanced filtering (price range sliders, amenities checkboxes)
+- [ ] Improved pagination with page numbers
 
 ### Court Listing (Mobile)
 - [ ] Create courts list screen
@@ -169,45 +171,54 @@
 - [ ] Implement pull-to-refresh
 
 ### Map Integration
-- [ ] Set up Mapbox GL JS (web)
-- [ ] Create map component with court markers
-- [ ] Implement click-to-view court details
-- [ ] Add user location marker
-- [ ] Create map/list toggle view
+- [x] Set up Leaflet (web) - using OpenStreetMap tiles instead of Mapbox
+- [x] Create map component with court markers
+- [x] Implement click-to-view court details
+- [x] Add user location marker
+- [x] Create map/list toggle view
+- [x] Custom marker clustering implementation
 - [ ] Set up react-native-maps (mobile)
 - [ ] Create mobile map view
 
 ### Court Detail Page
-- [ ] Create court detail page (web)
-- [ ] Display venue information
-- [ ] Show amenities list
-- [ ] Display pricing information
-- [ ] Show photo gallery
-- [ ] Display ratings and reviews
-- [ ] Show availability calendar
-- [ ] Add "Book Now" and "Join Queue" buttons
+- [x] Create court detail page (web)
+- [x] Display venue information
+- [x] Show amenities list
+- [x] Display pricing information
+- [x] Show photo gallery
+- [x] Display ratings and reviews placeholder
+- [x] Show availability calendar (integrated into booking flow)
+- [x] Add "Book Now" button
+- [ ] Add "Join Queue" button
 - [ ] Create court detail screen (mobile)
 
 ### Geospatial Search
-- [ ] Implement distance calculation on backend
-- [ ] Create location-based search API
-- [ ] Add radius filter
-- [ ] Implement bounding box queries for performance
+- [x] Implement distance calculation on backend (PostGIS)
+- [x] Create location-based search API (nearby_venues RPC)
+- [x] Add radius filter
+- [x] Implement efficient geospatial queries with PostGIS
 - [ ] Cache popular search results
 
 ---
 
-## Phase 3: Reservations & Payments
+## Phase 3: Reservations & Payments - 70% Complete 🚧
 
 ### Reservation Flow (Web)
-- [ ] Create reservation page
-- [ ] Build date picker component
-- [ ] Build time slot selector with availability
-- [ ] Implement booking conflict detection
-- [ ] Create booking confirmation modal
-- [ ] Add booking notes field
-- [ ] Create my reservations page
-- [ ] Implement reservation cancellation
+- [x] Create reservation page (booking flow)
+  - Located at `/courts/[id]/book/page.tsx`
+- [x] Build date picker component (Calendar UI component)
+- [x] Build time slot selector with availability (TimeSlotGrid component)
+- [x] Implement booking conflict detection (database-level exclusion constraint)
+- [x] Create booking confirmation flow
+- [x] Add booking notes field
+- [x] Create my bookings page (`/bookings`)
+  - Displays user's booking history with filtering
+- [x] Create my reservations page (`/reservations`)
+  - Shows active and past reservations
+- [x] Implement reservation cancellation (server action)
+  - Server action at `/app/actions/reservations.ts`
+- [ ] Implement booking modification/rescheduling
+- [ ] Add booking reminder notifications
 
 ### Reservation Flow (Mobile)
 - [ ] Create reservation screen
@@ -216,23 +227,81 @@
 - [ ] Implement cancellation flow
 
 ### Payment Integration
-- [ ] Set up PayMongo account
-- [ ] Create payment intent API
-- [ ] Implement GCash payment flow
-- [ ] Implement Maya payment flow
-- [ ] Generate QR code for payment
-- [ ] Create webhook endpoint for payment confirmation
-- [ ] Handle payment success/failure states
-- [ ] Create payment receipt/confirmation
+- [x] Set up PayMongo account and credentials
+- [x] Create PayMongo client library (`/lib/paymongo/`)
+  - `client.ts` - Payment creation, source generation
+  - `types.ts` - TypeScript definitions for PayMongo API
+- [x] Create payment server actions (`/app/actions/payments.ts`)
+  - `createPaymentSource()` - GCash/Maya source creation
+  - `createPaymentIntent()` - Payment intent creation
+- [x] Implement GCash payment flow
+- [x] Implement Maya payment flow
+- [x] Generate QR code for payment (PayMongo checkout URL)
+- [x] Create webhook endpoint for payment confirmation
+  - Located at `/app/api/webhooks/paymongo/route.ts`
+  - Handles `source.chargeable`, `payment.paid`, `payment.failed` events
+  - Includes webhook signature verification
+  - Idempotency handling to prevent duplicate processing
+- [x] Handle payment success/failure states
+- [x] Create payment success page (`/checkout/success`)
+- [x] Create payment failure page (`/checkout/failed`)
+- [x] Add payment expiration function (`expire_old_payments()`)
+  - Database function in migration 004
+  - Expires payments older than 15 minutes
+  - Automatically cancels associated reservations
+- [x] Add database indexes for payment performance
+  - `idx_payments_pending_created`
+  - `idx_payments_status_expires`
+  - `idx_reservations_court_time_status`
+- [x] Add webhook idempotency handling
+- [x] Add PAYMONGO_WEBHOOK_SECRET to .env.example
+- [ ] Create payment receipt email
+- [ ] Add payment expiration automation (scheduled job/Edge Function)
+- [ ] Implement QR code image generation (currently using PayMongo URLs)
+- [ ] Add payment status polling for real-time updates
+- [ ] Handle cash payment option
 
 ### Split Payments
-- [ ] Design split payment UI
-- [ ] Implement participant invitation
+- [x] Design split payment database schema
+  - `payment_splits` table created in initial schema
+  - Tracks individual participant payments
+- [x] Design split payment UI (in checkout flow)
+  - Participant input fields
+  - Split calculation logic
+- [ ] Implement participant invitation system
+  - Email/SMS invitations
+  - Deep links to payment pages
 - [ ] Create payment tracking per participant
+  - Individual payment status tracking
+  - Partial payment handling
 - [ ] Implement payment deadline logic
-- [ ] Create auto-cancellation for incomplete payments
+  - Deadline enforcement
+  - Automatic cancellation for incomplete payments
 - [ ] Implement refund flow for failed group bookings
 - [ ] Send payment reminders to participants
+
+### Database & Security
+- [x] Add exclusion constraint to prevent double booking (migration 004)
+  - `no_overlapping_reservations` constraint using btree_gist
+  - Prevents overlapping reservations for same court
+- [x] Add validation triggers for overlapping reservations
+  - `validate_reservation_no_overlap()` function
+  - Triggers on INSERT and UPDATE
+- [x] Create active_reservations view
+  - Shows pending/confirmed reservations with venue details
+- [x] Create payment_summary view
+  - Shows all payments with reservation and user info
+- [x] Add comprehensive RLS policies (migration 005 created)
+  - DELETE policy for reservations (24-hour cancellation window)
+  - Court admin SELECT/UPDATE policies for venue management
+  - INSERT/UPDATE policies for payments (webhook support)
+  - INSERT policy for payment_splits (reservation owner only)
+  - Enhanced SELECT policy for payment_splits (includes reservation owner)
+- [x] Create migration verification script (VERIFY_MIGRATIONS_004_005.sql)
+- [x] Document migration status and requirements (MIGRATION_STATUS_REPORT.md)
+- [ ] Verify migrations 004 and 005 applied to production (run verification script)
+- [ ] Test all RLS policies with different user roles
+- [ ] Set up payment expiration scheduled job (Edge Function or pg_cron)
 
 ---
 

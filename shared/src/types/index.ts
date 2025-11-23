@@ -107,14 +107,21 @@ export interface Reservation {
   endTime: string;
   status: ReservationStatus;
   totalAmount: number;
-  paidAmount: number;
+  amountPaid: number;
   paymentDeadline?: Date;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export type ReservationStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+export type ReservationStatus =
+  | 'pending_payment'
+  | 'pending'
+  | 'paid'
+  | 'confirmed'
+  | 'cancelled'
+  | 'completed'
+  | 'no_show';
 
 // Queue Types
 export interface QueueSession {

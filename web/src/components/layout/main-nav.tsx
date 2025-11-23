@@ -26,7 +26,10 @@ export function MainNav({ user }: MainNavProps) {
 
   const navItems = [
     { href: '/home', label: 'Home', icon: HomeIcon },
-    { href: '/matches', label: 'My Match', icon: MatchIcon },
+    { href: '/courts', label: 'Courts', icon: CourtsIcon },
+    { href: '/queue', label: 'Queue', icon: QueueIcon },
+    { href: '/bookings', label: 'Bookings', icon: BookingsIcon },
+    { href: '/reservations', label: 'Reservations', icon: ReservationsIcon },
     { href: '/profile', label: 'Profile', icon: ProfileIcon },
   ]
 
@@ -55,11 +58,13 @@ export function MainNav({ user }: MainNavProps) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'text-sm font-medium transition-colors hover:text-primary',
+                    'text-sm font-medium transition-colors hover:text-primary relative',
                     pathname === item.href ? 'text-primary' : 'text-gray-600'
                   )}
                 >
                   {item.label}
+                  {/* Queue badge - shows count of active queues */}
+                  {item.href === '/queue' && <QueueBadge pathname={pathname} />}
                 </Link>
               ))}
             </nav>
@@ -156,12 +161,14 @@ export function MainNav({ user }: MainNavProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors',
+                  'flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors relative',
                   isActive ? 'text-primary' : 'text-gray-500 hover:text-gray-700'
                 )}
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-xs font-medium">{item.label}</span>
+                {/* Queue badge for mobile */}
+                {item.href === '/queue' && <QueueBadge pathname={pathname} isMobile />}
               </Link>
             )
           })}
@@ -196,5 +203,66 @@ function ProfileIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
     </svg>
+  )
+}
+
+function CourtsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+    </svg>
+  )
+}
+
+function BookingsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    </svg>
+  )
+}
+
+function ReservationsIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  )
+}
+
+function QueueIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    </svg>
+  )
+}
+
+// Queue badge component - shows count of active queues
+function QueueBadge({ pathname, isMobile }: { pathname: string; isMobile?: boolean }) {
+  'use client'
+  
+  // TODO: Replace with useQueueBadge hook when backend is ready
+  // For now, showing mock badge to demonstrate UI
+  const mockActiveCount = 0 // Change to 2 to see badge
+  
+  // Don't show on queue pages themselves
+  if (pathname?.startsWith('/queue')) return null
+  
+  // Don't show if no active queues
+  if (mockActiveCount === 0) return null
+  
+  return (
+    <span 
+      className={cn(
+        'absolute flex items-center justify-center bg-primary text-white text-xs font-bold rounded-full',
+        isMobile 
+          ? 'w-4 h-4 -top-0.5 -right-0.5' 
+          : 'w-5 h-5 -top-1.5 -right-2'
+      )}
+      style={{ fontSize: isMobile ? '9px' : '10px' }}
+    >
+      {mockActiveCount}
+    </span>
   )
 }
