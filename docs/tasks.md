@@ -120,9 +120,10 @@
   - Skill level selection (Beginner/Intermediate/Advanced/Elite)
   - Match preferences (formats, frequency, location)
 - [x] Create home page with quick actions
-  - Book a court, Compete, Help AI buttons
-  - Suggested courts section
-  - Near you section with court cards
+  - ✅ **Updated "Compete" button to "Queue" button** (links to `/queue`) (2025-11-25)
+  - ✅ **Implemented real venue data for "Suggested Courts"** (2025-11-25)
+  - ✅ **Implemented geolocation-based "Near You" section** (2025-11-25)
+  - ✅ **Added "Active Queues Nearby" section** (2025-11-25)
 - [x] Create profile page UI
   - User info with avatar
   - Stats (Queue Matches, Won Matches, Skill Level)
@@ -201,7 +202,7 @@
 
 ---
 
-## Phase 3: Reservations & Payments - 70% Complete 🚧
+## Phase 3: Reservations & Payments - 85% Complete ✅
 
 ### Reservation Flow (Web)
 - [x] Create reservation page (booking flow)
@@ -231,18 +232,21 @@
 - [x] Create PayMongo client library (`/lib/paymongo/`)
   - `client.ts` - Payment creation, source generation
   - `types.ts` - TypeScript definitions for PayMongo API
-- [x] Create payment server actions (`/app/actions/payments.ts`)
-  - `createPaymentSource()` - GCash/Maya source creation
-  - `createPaymentIntent()` - Payment intent creation
 - [x] Implement GCash payment flow
 - [x] Implement Maya payment flow
 - [x] Generate QR code for payment (PayMongo checkout URL)
+- [x] Create payment server actions (`/app/actions/payments.ts`)
+  - `createPaymentSource()` - GCash/Maya source creation
+  - `createPaymentIntent()` - Payment intent creation
+  - ✅ **Fixed source.type to use literal 'source'** (2025-11-25)
 - [x] Create webhook endpoint for payment confirmation
   - Located at `/app/api/webhooks/paymongo/route.ts`
   - Handles `source.chargeable`, `payment.paid`, `payment.failed` events
-  - Includes webhook signature verification
+  - ✅ **Fixed webhook signature verification** (uses `te=` and `li=` fields) (2025-11-25)
   - Idempotency handling to prevent duplicate processing
+  - Webhooks now properly accept with 200 status
 - [x] Handle payment success/failure states
+  - ✅ **Payment flow fully functional** (pending → completed → confirmed) (2025-11-25)
 - [x] Create payment success page (`/checkout/success`)
 - [x] Create payment failure page (`/checkout/failed`)
 - [x] Add payment expiration function (`expire_old_payments()`)
@@ -253,8 +257,13 @@
   - `idx_payments_pending_created`
   - `idx_payments_status_expires`
   - `idx_reservations_court_time_status`
-- [x] Add webhook idempotency handling
+- [x] Add webhook idempotency handling ✅
 - [x] Add PAYMONGO_WEBHOOK_SECRET to .env.example
+- [x] **Payment webhook integration fully functional** ✅ (2025-11-25)
+  - Webhook signature parsing fixed
+  - Payment source creation fixed
+  - Reservation status updates working
+  - Bookings persist after successful payment
 - [ ] Create payment receipt email
 - [ ] Add payment expiration automation (scheduled job/Edge Function)
 - [ ] Implement QR code image generation (currently using PayMongo URLs)

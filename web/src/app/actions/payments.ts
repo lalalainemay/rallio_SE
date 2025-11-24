@@ -37,6 +37,12 @@ export async function initiatePaymentAction(
   reservationId: string,
   paymentMethod: PaymentMethod
 ): Promise<InitiatePaymentResult> {
+  console.log('[initiatePaymentAction] 🚀 Starting payment initiation')
+  console.log('[initiatePaymentAction] Input:', {
+    reservationId,
+    paymentMethod
+  })
+
   try {
     const supabase = await createClient()
 
@@ -44,7 +50,14 @@ export async function initiatePaymentAction(
     const {
       data: { user },
     } = await supabase.auth.getUser()
+
+    console.log('[initiatePaymentAction] User auth:', {
+      authenticated: !!user,
+      userId: user?.id
+    })
+
     if (!user) {
+      console.error('[initiatePaymentAction] ❌ User not authenticated')
       return { success: false, error: 'User not authenticated' }
     }
 
@@ -179,43 +192,58 @@ export async function initiatePaymentAction(
 
     // Create payment record in database with 15-minute expiration
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
-    
+
+    console.log('[initiatePaymentAction] 💾 Creating payment record in database')
+    const paymentData = {
+      reference: paymentReference,
+      user_id: user.id,
+      reservation_id: reservationId,
+      amount: reservation.total_amount,
+      currency: 'PHP',
+      payment_method: paymentMethod,
+      payment_provider: 'paymongo',
+      external_id: sourceId,
+      status: 'pending' as const,
+      expires_at: expiresAt.toISOString(),
+      metadata: {
+        description,
+        checkout_url: checkoutUrl,
+        source_id: sourceId,
+        reservation_id: reservationId,
+        payment_reference: paymentReference,
+      },
+    }
+    console.log('[initiatePaymentAction] Payment data:', paymentData)
+
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
-      .insert({
-        reference: paymentReference,
-        user_id: user.id,
-        reservation_id: reservationId,
-        amount: reservation.total_amount,
-        currency: 'PHP',
-        payment_method: paymentMethod,
-        payment_provider: 'paymongo',
-        external_id: sourceId,
-        status: 'pending',
-        expires_at: expiresAt.toISOString(),
-        metadata: {
-          description,
-          checkout_url: checkoutUrl,
-          source_id: sourceId,
-          reservation_id: reservationId,
-          payment_reference: paymentReference,
-        },
-      })
+      .insert(paymentData)
       .select('id')
       .single()
 
+    console.log('[initiatePaymentAction] Payment insert result:', {
+      success: !!payment,
+      paymentId: payment?.id,
+      error: paymentError ? {
+        message: paymentError.message,
+        code: paymentError.code,
+        details: paymentError.details
+      } : null
+    })
+
     if (paymentError) {
-      console.error('Error creating payment record:', paymentError)
-      console.error('Payment error details:', JSON.stringify(paymentError, null, 2))
-      return { 
-        success: false, 
+      console.error('[initiatePaymentAction] ❌ Error creating payment record:', paymentError)
+      console.error('[initiatePaymentAction] Payment error details:', JSON.stringify(paymentError, null, 2))
+      return {
+        success: false,
         error: paymentError.message || paymentError.details || 'Failed to create payment record'
       }
     }
 
     // Update reservation to indicate payment initiated
     // Status: 'pending_payment' (requires migration 006) or 'pending' (fallback)
-    await supabase
+    console.log('[initiatePaymentAction] 📝 Updating reservation status to pending_payment')
+    const { error: reservationUpdateError } = await supabase
       .from('reservations')
       .update({
         status: 'pending_payment',
@@ -227,7 +255,23 @@ export async function initiatePaymentAction(
       })
       .eq('id', reservationId)
 
+    if (reservationUpdateError) {
+      console.error('[initiatePaymentAction] ⚠️ Failed to update reservation status:', {
+        error: reservationUpdateError,
+        code: reservationUpdateError.code
+      })
+      // Don't fail the payment creation if this fails
+    } else {
+      console.log('[initiatePaymentAction] ✅ Reservation status updated')
+    }
+
     revalidatePath('/reservations')
+
+    console.log('[initiatePaymentAction] ✅ Payment initiation complete:', {
+      paymentId: payment.id,
+      sourceId,
+      checkoutUrl
+    })
 
     return {
       success: true,
@@ -378,12 +422,13 @@ export async function processChargeableSourceAction(sourceId: string): Promise<{
       .eq('id', payment.id)
 
     // Create charge in PayMongo
+    // IMPORTANT: source.type must always be 'source' (not payment method type)
     const paymentResult = await createPayment({
       amount: Math.round(payment.amount * 100), // Convert to centavos
       description: payment.metadata?.description || 'Court reservation',
       source: {
         id: sourceId,
-        type: payment.payment_method as 'gcash' | 'paymaya',
+        type: 'source', // Always 'source' per PayMongo API spec
       },
       metadata: {
         payment_id: payment.id,

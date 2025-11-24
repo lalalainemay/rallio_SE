@@ -21,6 +21,94 @@ This ensures you understand:
 - Suggest what to do next based on the task list
 - Offer to continue with the next logical task or let the user choose
 
+## Debugging Methodology
+
+When encountering bugs or issues, follow this systematic approach:
+
+### 1. Observe & Gather Evidence
+- **Read terminal logs carefully** - Look for error messages, stack traces, and unexpected behavior
+- **Check what's actually happening** vs what should happen
+- **Identify patterns** - Is it failing consistently? At what point?
+- **Collect examples** - Save error messages, request/response data, relevant logs
+
+### 2. Add Comprehensive Logging
+Before trying to fix anything, add detailed logging to understand the flow:
+- **Log at every critical step** - function entry, before/after API calls, conditionals
+- **Log both success and failure paths** - Don't just log errors
+- **Include context** - Log relevant variables, IDs, statuses
+- **Use visual markers** - Emojis (🚨, ✅, ❌, 🔍) make logs easier to scan
+- **Show data structure** - Log object shapes, not just values
+
+Example:
+```typescript
+console.log('🚨🚨🚨 [Function] Critical point reached!')
+console.log('🔍 [Function] Input data:', { id, status, ...relevantFields })
+console.log('✅ [Function] Success:', result)
+console.log('❌ [Function] Error:', error.message, error.code)
+```
+
+### 3. Isolate the Problem
+- **Narrow down the location** - Which file? Which function? Which line?
+- **Test assumptions** - Is the data in the format you expect?
+- **Check for null/undefined** - Are all required values present?
+- **Verify external dependencies** - Are APIs returning what you expect?
+
+### 4. Research & Understand
+- **Read the API documentation** - What does the external service actually expect?
+- **Check type definitions** - Does TypeScript reveal the expected shape?
+- **Look for similar issues** - Has this been solved before in the codebase?
+- **Test in isolation** - Can you reproduce with a minimal test case?
+
+### 5. Fix with Precision
+- **Make targeted changes** - Don't refactor while debugging
+- **Fix one thing at a time** - Multiple changes make it hard to know what worked
+- **Validate assumptions** - Add assertions or checks for edge cases
+- **Keep logging in place** - It helps verify the fix works
+
+### 6. Verify & Document
+- **Test the fix thoroughly** - Does it work in all scenarios?
+- **Check for side effects** - Did the fix break anything else?
+- **Update documentation** - Add notes to prevent future confusion
+- **Clean up debug logs** - Remove excessive logging but keep useful diagnostics
+
+### Example: PayMongo Webhook Debugging Process
+
+**Problem:** Payments completing but bookings disappearing
+
+**Step 1 - Observe:**
+```
+Payment initiation: ✅ Working
+Webhook received: ✅ Working
+Webhook signature: ❌ Failing (401)
+```
+
+**Step 2 - Add Logging:**
+```typescript
+console.log('🔐 [verifyWebhookSignature] Signature header:', signature)
+console.log('🔐 [verifyWebhookSignature] Parsed components:', { timestamp, sig })
+```
+
+**Step 3 - Isolate:**
+Discovered signature header has `te=` and `li=` fields, not `s=`
+
+**Step 4 - Research:**
+Found PayMongo docs showing format is `t={timestamp},te={test_sig},li={live_sig}`
+
+**Step 5 - Fix:**
+Changed parsing from `p.startsWith('s=')` to handle `te=` and `li=`
+
+**Step 6 - Verify:**
+Tested payment flow, confirmed webhooks accepted with 200 status
+
+### Key Principles
+
+- **Logs are your best friend** - When in doubt, log more
+- **Don't guess** - Verify your assumptions with actual data
+- **Follow the data** - Trace the flow from input to output
+- **Read error messages carefully** - They often tell you exactly what's wrong
+- **Test incrementally** - Verify each step works before moving to the next
+- **Document as you go** - Future you (or others) will thank you
+
 ## Project Overview
 
 Rallio is a Badminton Court Finder & Queue Management System for Zamboanga City, Philippines. It's a full-stack monorepo with web (Next.js), mobile (React Native/Expo), and backend (Supabase/PostgreSQL) applications.
@@ -305,6 +393,33 @@ try {
 - Set `processing` flag in metadata during webhook handling
 - Use 5-minute stale flag timeout for recovery
 
+### PayMongo Webhook Signature Verification Failing (401 Unauthorized)
+**Cause:** Incorrect parsing of webhook signature header
+**Solution:** ✅ FIXED (2025-11-25)
+- PayMongo signature header format uses `te=` (test) and `li=` (live) fields, not `s=`
+- Correct parsing:
+```typescript
+const signatureHeader = request.headers.get('paymongo-signature')
+const parts = signatureHeader.split(',')
+const timestampPart = parts.find(p => p.startsWith('te=') || p.startsWith('li='))
+const signaturePart = parts.find(p => p.startsWith('te=') || p.startsWith('li='))
+const timestamp = timestampPart.split('=')[1]
+const signature = signaturePart.split('=')[1]
+```
+- File: `/web/src/app/api/webhooks/paymongo/route.ts`
+
+### PayMongo Payment Creation Error: "source.type passed gcash is invalid"
+**Cause:** Incorrect `source.type` value in payment creation
+**Solution:** ✅ FIXED (2025-11-25)
+- `source.type` should always be the literal string `'source'`, NOT the payment method type
+- Incorrect: `source.type = 'gcash'` or `source.type = 'paymaya'`
+- Correct: `source.type = 'source'`
+- The payment method is already encoded in the source ID
+- Files fixed:
+  - `/web/src/lib/paymongo/types.ts`
+  - `/web/src/app/api/webhooks/paymongo/route.ts`
+  - `/web/src/app/actions/payments.ts`
+
 ## Recent Database Migrations
 
 Beyond the initial schema (`001_initial_schema_v2.sql`), the following migrations have been applied:
@@ -344,7 +459,7 @@ Beyond the initial schema (`001_initial_schema_v2.sql`), the following migration
 - ⚠️ Enhanced filtering pending (price range sliders, amenity checkboxes)
 - ⚠️ Mobile implementation pending
 
-### Phase 3: Reservations & Payments 🚧 70% Complete
+### Phase 3: Reservations & Payments ✅ 85% Complete
 **Completed:**
 - ✅ Full booking flow (`/courts/[id]/book`)
   - Calendar date picker (shadcn/ui Calendar component)
@@ -354,19 +469,28 @@ Beyond the initial schema (`001_initial_schema_v2.sql`), the following migration
   - Custom client library (`/lib/paymongo/`)
   - GCash and Maya payment sources
   - Checkout URL generation
+  - ✅ **Fixed source.type to use literal 'source'** (prevents "invalid" errors)
 - ✅ Payment webhook handler (`/api/webhooks/paymongo/route.ts`)
   - Handles `source.chargeable`, `payment.paid`, `payment.failed` events
-  - Signature verification with `PAYMONGO_WEBHOOK_SECRET`
+  - ✅ **Fixed signature verification** (uses `te=` and `li=` fields correctly)
   - Idempotency handling for duplicate webhooks
+  - ✅ **Webhooks now properly accept with 200 status**
+  - ✅ **Payment flow fully functional** (pending → completed → confirmed)
 - ✅ Booking management
   - My Bookings page (`/bookings`)
   - My Reservations page (`/reservations`)
   - Cancellation server action
+  - ✅ **Bookings persist after successful payment**
 - ✅ Database protection
   - Double booking prevention (exclusion constraint)
   - Payment expiration function (15-minute timeout)
   - Validation triggers and database views
 - ✅ Success/failure pages (`/checkout/success`, `/checkout/failed`)
+- ✅ Home page enhancements
+  - "Queue" button linking to `/queue`
+  - Real venue data for "Suggested Courts" section
+  - Geolocation-based "Near You" section
+  - "Active Queues Nearby" section
 
 **In Progress / Pending:**
 - ⚠️ Split payment backend logic (database ready, UI partial)

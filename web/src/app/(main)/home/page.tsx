@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { ProfileCompletionBanner } from '@/components/profile-completion-banner'
+import { NearbyVenues } from '@/components/home/nearby-venues'
+import { NearbyQueues } from '@/components/home/nearby-queues'
+import { formatCurrency } from '@rallio/shared'
 
 export const metadata = {
   title: 'Home | Rallio',
@@ -22,18 +25,32 @@ export default async function HomePage() {
     .eq('id', user?.id)
     .single()
 
-  // Get suggested courts
-  const { data: courts } = await supabase
-    .from('courts')
+  // Get suggested venues with full details
+  const { data: suggestedVenues } = await supabase
+    .from('venues')
     .select(`
       id,
       name,
-      hourly_rate,
-      court_type,
-      venue:venues(id, name, address)
+      address,
+      latitude,
+      longitude,
+      opening_hours,
+      courts (
+        id,
+        name,
+        hourly_rate,
+        court_type,
+        is_active,
+        court_images (
+          url,
+          is_primary,
+          display_order
+        )
+      )
     `)
     .eq('is_active', true)
-    .limit(4)
+    .eq('courts.is_active', true)
+    .limit(3)
 
   const firstName = userProfile?.display_name?.split(' ')[0] || 'Player'
   const profileCompleted = userProfile?.profile_completed ?? false
@@ -72,6 +89,7 @@ export default async function HomePage() {
       <div className="p-6">
         {/* Profile Completion Reminder */}
         {!profileCompleted && <ProfileCompletionBanner />}
+
         {/* Quick Actions - Large Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Link
@@ -87,15 +105,15 @@ export default async function HomePage() {
           </Link>
 
           <Link
-            href="/compete"
+            href="/queue"
             className="bg-primary hover:bg-primary/90 rounded-2xl p-6 flex flex-col justify-between min-h-[160px] transition-colors"
           >
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 10H9m6 4a7 7 0 11-14 0 7 7 0 0114 0zM9 15h6" />
               </svg>
             </div>
-            <span className="text-white text-lg font-semibold">Compete</span>
+            <span className="text-white text-lg font-semibold">Queue</span>
           </Link>
 
           <Link
@@ -121,63 +139,68 @@ export default async function HomePage() {
           </div>
 
           <div className="space-y-3">
-            {courts && courts.length > 0 ? (
-              courts.slice(0, 2).map((court: any) => (
-                <Link
-                  key={court.id}
-                  href={`/courts/${court.venue?.id}`}
-                  className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary/30 hover:shadow-sm transition-all"
-                >
-                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            {suggestedVenues && suggestedVenues.length > 0 ? (
+              suggestedVenues.slice(0, 2).map((venue: any) => {
+                // Get primary image or first available image
+                const primaryImage = venue.courts
+                  ?.flatMap((c: any) => c.court_images || [])
+                  .find((img: any) => img.is_primary)
+                const imageUrl = primaryImage?.url || venue.courts?.[0]?.court_images?.[0]?.url
+
+                // Calculate price range
+                const prices = venue.courts?.map((c: any) => c.hourly_rate) || []
+                const minPrice = prices.length > 0 ? Math.min(...prices) : null
+                const maxPrice = prices.length > 0 ? Math.max(...prices) : null
+
+                return (
+                  <Link
+                    key={venue.id}
+                    href={`/courts/${venue.id}`}
+                    className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary/30 hover:shadow-sm transition-all"
+                  >
+                    <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {imageUrl ? (
+                        <img src={imageUrl} alt={venue.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-900 truncate">{venue.name}</h3>
+                      <p className="text-sm text-gray-500 truncate">{venue.address}</p>
+                      {minPrice !== null && maxPrice !== null && (
+                        <p className="text-xs text-primary font-medium mt-1">
+                          {minPrice === maxPrice
+                            ? formatCurrency(minPrice)
+                            : `${formatCurrency(minPrice)} - ${formatCurrency(maxPrice)}`}
+                          /hr
+                        </p>
+                      )}
+                    </div>
+                    <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-900 truncate">{court.venue?.name || court.name}</h3>
-                    <p className="text-sm text-gray-500 truncate">
-                      {court.venue?.address}
-                    </p>
-                  </div>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              ))
+                  </Link>
+                )
+              })
             ) : (
-              <>
-                <Link href="/courts/1" className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary/30 hover:shadow-sm transition-all">
-                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">SmashPoint Arena</h3>
-                    <p className="text-sm text-gray-500">Tetuan, ZC</p>
-                  </div>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center">
+                <p className="text-sm text-gray-500 mb-2">No courts available at the moment</p>
+                <Link
+                  href="/courts"
+                  className="text-sm font-medium text-primary hover:text-primary/80"
+                >
+                  Browse all courts
                 </Link>
-                <Link href="/courts/2" className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary/30 hover:shadow-sm transition-all">
-                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-900">Rally Club Court</h3>
-                    <p className="text-sm text-gray-500">Sta. Maria, ZC</p>
-                  </div>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              </>
+              </div>
             )}
           </div>
         </section>
+
+        {/* Active Queues Nearby - Only shows if there are active queues */}
+        <NearbyQueues />
 
         {/* Near You */}
         <section>
@@ -188,48 +211,7 @@ export default async function HomePage() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Court Card 1 */}
-            <div className="bg-gray-100 rounded-xl overflow-hidden">
-              <div className="relative h-24 bg-gray-200 flex items-center justify-center">
-                <span className="absolute top-2 right-2 bg-primary text-white text-[10px] px-2 py-0.5 rounded font-medium">
-                  OPEN
-                </span>
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div className="p-3">
-                <h3 className="font-medium text-sm text-gray-900">DropZone Court</h3>
-                <p className="text-xs text-gray-500 mt-0.5">La Purisima St., Zone II</p>
-                <Link
-                  href="/courts/1"
-                  className="mt-3 block text-center border border-gray-300 text-gray-700 text-xs py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                  See Court
-                </Link>
-              </div>
-            </div>
-
-            {/* Court Card 2 */}
-            <div className="bg-gray-100 rounded-xl overflow-hidden">
-              <div className="relative h-24 bg-gray-200 flex items-center justify-center">
-                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div className="p-3">
-                <h3 className="font-medium text-sm text-gray-900">AceCourt Arena</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Nuñez Ave., Tumaga</p>
-                <Link
-                  href="/courts/2"
-                  className="mt-3 block text-center border border-gray-300 text-gray-700 text-xs py-2 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                >
-                  See Court
-                </Link>
-              </div>
-            </div>
-          </div>
+          <NearbyVenues />
         </section>
       </div>
     </div>

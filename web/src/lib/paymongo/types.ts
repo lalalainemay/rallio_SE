@@ -158,7 +158,7 @@ export interface CreatePaymentParams {
   statement_descriptor?: string
   source: {
     id: string
-    type: SourceType
+    type: 'source' // Always 'source' when creating payment from chargeable source
   }
   metadata?: Record<string, any>
 }

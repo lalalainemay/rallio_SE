@@ -4,18 +4,106 @@ import { revalidatePath } from 'next/cache'
 import crypto from 'crypto'
 
 /**
+ * CORS headers for webhook endpoint
+ * PayMongo may send preflight requests
+ */
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, paymongo-signature',
+}
+
+/**
+ * Health check endpoint to verify webhook route is accessible
+ * Usage: GET https://your-domain.com/api/webhooks/paymongo
+ */
+export async function GET(request: NextRequest) {
+  console.log('🏥 [Webhook Health Check] GET request received')
+  console.log('🏥 [Webhook Health Check] Request URL:', request.url)
+  console.log('🏥 [Webhook Health Check] Request headers:', Object.fromEntries(request.headers))
+
+  return NextResponse.json({
+    status: 'ok',
+    message: 'PayMongo webhook endpoint is reachable',
+    timestamp: new Date().toISOString(),
+    endpoint: '/api/webhooks/paymongo',
+    methods: ['GET', 'POST', 'OPTIONS'],
+    environment: process.env.NODE_ENV || 'unknown',
+  }, {
+    status: 200,
+    headers: corsHeaders
+  })
+}
+
+/**
+ * Handle preflight OPTIONS requests
+ * Required for CORS compliance
+ */
+export async function OPTIONS(request: NextRequest) {
+  console.log('🔧 [PayMongo Webhook] OPTIONS preflight request received')
+  console.log('🔧 [PayMongo Webhook] Origin:', request.headers.get('origin'))
+
+  return new Response(null, {
+    status: 204,
+    headers: corsHeaders
+  })
+}
+
+/**
  * PayMongo Webhook Handler
  * Handles payment status updates from PayMongo
  */
 export async function POST(request: NextRequest) {
+  const timestamp = new Date().toISOString()
+
+  // 🚨 CRITICAL: First log to confirm webhook is reaching server
+  console.log('\n🚨🚨🚨 [PayMongo Webhook] POST REQUEST RECEIVED! 🚨🚨🚨')
+  console.log('🚨 [PayMongo Webhook] Timestamp:', timestamp)
+  console.log('🚨 [PayMongo Webhook] Request URL:', request.url)
+  console.log('🚨 [PayMongo Webhook] Request method:', request.method)
+
+  console.log(`\n${'='.repeat(80)}`)
+  console.log(`[PayMongo Webhook] ${timestamp} - Processing webhook`)
+  console.log(`${'='.repeat(80)}`)
+
+  // 🔍 Debug checklist
+  console.log('🔍 [Webhook Debug Checklist]')
+  console.log('  ✓ Endpoint reachable?', 'YES - this log confirms it')
+  console.log('  ✓ POST method?', request.method)
+  console.log('  ✓ Content-Type:', request.headers.get('content-type'))
+  console.log('  ✓ Has paymongo-signature?', request.headers.has('paymongo-signature'))
+  console.log('  ✓ Content-Length:', request.headers.get('content-length'))
+  console.log('  ✓ User-Agent:', request.headers.get('user-agent'))
+  console.log('  ✓ Origin:', request.headers.get('origin'))
+  console.log('  ✓ All headers:', Object.fromEntries(request.headers))
+
   try {
     const body = await request.text()
     const signature = request.headers.get('paymongo-signature')
 
-    // Verify webhook signature
-    if (!verifyWebhookSignature(body, signature)) {
-      console.error('Invalid webhook signature')
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+    console.log('[PayMongo Webhook] Request body received:', {
+      bodyLength: body.length,
+      bodyPreview: body.substring(0, 200) + (body.length > 200 ? '...' : ''),
+      hasSignature: !!signature,
+    })
+
+    // Verify webhook signature (with development bypass)
+    const isDevelopment = process.env.NODE_ENV === 'development'
+    const signatureValid = verifyWebhookSignature(body, signature, isDevelopment)
+
+    console.log('[PayMongo Webhook] Signature verification:', {
+      valid: signatureValid,
+      hasWebhookSecret: !!process.env.PAYMONGO_WEBHOOK_SECRET,
+      isDevelopment,
+      bypassedInDev: isDevelopment && !process.env.PAYMONGO_WEBHOOK_SECRET
+    })
+
+    if (!signatureValid) {
+      console.error('[PayMongo Webhook] ❌ Invalid webhook signature - rejecting request')
+      return NextResponse.json({ error: 'Invalid signature' }, {
+        status: 401,
+        headers: corsHeaders
+      })
     }
 
     const event = JSON.parse(body)
@@ -23,65 +111,127 @@ export async function POST(request: NextRequest) {
     const eventId = event.data?.id || event.id
     const eventData = event.data?.attributes?.data
 
-    console.log('PayMongo webhook event:', {
+    console.log('[PayMongo Webhook] 📦 Event parsed:', {
       eventType,
       eventId,
+      eventDataId: eventData?.id,
+      eventDataType: eventData?.type,
+      hasEventData: !!eventData,
+      rawEventKeys: Object.keys(event.data || {}),
+      rawEventAttributeKeys: Object.keys(event.data?.attributes || {})
     })
 
     // Handle different event types
     switch (eventType) {
       case 'source.chargeable':
+        console.log('[PayMongo Webhook] 🔄 Handling source.chargeable event')
         await handleSourceChargeable(eventData, eventId)
         break
 
       case 'payment.paid':
+        console.log('[PayMongo Webhook] 💰 Handling payment.paid event')
         await handlePaymentPaid(eventData, eventId)
         break
 
       case 'payment.failed':
+        console.log('[PayMongo Webhook] ❌ Handling payment.failed event')
         await handlePaymentFailed(eventData, eventId)
         break
 
       default:
-        console.log('Unhandled webhook event type:', eventType)
+        console.log('[PayMongo Webhook] ⚠️ Unhandled webhook event type:', eventType)
     }
 
-    return NextResponse.json({ received: true })
+    console.log('[PayMongo Webhook] ✅ Webhook processed successfully')
+    console.log(`${'='.repeat(80)}\n`)
+    return NextResponse.json({ received: true }, {
+      status: 200,
+      headers: corsHeaders
+    })
   } catch (error) {
-    console.error('Webhook processing error:', error)
+    console.error('[PayMongo Webhook] ❌ CRITICAL ERROR during webhook processing')
+    console.error('[PayMongo Webhook] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      type: error?.constructor?.name
+    })
+    console.log(`${'='.repeat(80)}\n`)
     return NextResponse.json(
       { error: 'Webhook processing failed' },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     )
   }
 }
 
 /**
  * Verify PayMongo webhook signature
+ * In development mode with no webhook secret, bypass verification
  */
-function verifyWebhookSignature(payload: string, signature: string | null): boolean {
-  if (!signature) return false
+function verifyWebhookSignature(
+  payload: string,
+  signature: string | null,
+  isDevelopment: boolean = false
+): boolean {
+  console.log('🔐 [verifyWebhookSignature] Starting signature verification')
+  console.log('🔐 [verifyWebhookSignature] Has signature header?', !!signature)
+  console.log('🔐 [verifyWebhookSignature] Is development mode?', isDevelopment)
+
+  if (!signature) {
+    console.warn('⚠️ [verifyWebhookSignature] No signature header present')
+    if (isDevelopment) {
+      console.warn('⚠️ [verifyWebhookSignature] DEVELOPMENT MODE: Bypassing signature check')
+      return true
+    }
+    return false
+  }
 
   const webhookSecret = process.env.PAYMONGO_WEBHOOK_SECRET
+  console.log('🔐 [verifyWebhookSignature] Has webhook secret?', !!webhookSecret)
+
   if (!webhookSecret) {
     if (process.env.NODE_ENV === 'production') {
-      console.error('PAYMONGO_WEBHOOK_SECRET required in production')
+      console.error('❌ [verifyWebhookSignature] PAYMONGO_WEBHOOK_SECRET required in production')
       throw new Error('PAYMONGO_WEBHOOK_SECRET is required in production environment')
     }
-    console.warn('⚠️ PAYMONGO_WEBHOOK_SECRET not set - DEVELOPMENT ONLY')
+    console.warn('⚠️ [verifyWebhookSignature] DEVELOPMENT MODE: No webhook secret configured')
+    console.warn('⚠️ [verifyWebhookSignature] Bypassing signature verification (UNSAFE for production)')
     return true
   }
 
   // Extract timestamp and signature from header
-  // Format: t=timestamp,s=signature
+  // PayMongo format: t=timestamp,te=test_sig,li=live_sig
+  console.log('🔐 [verifyWebhookSignature] Signature header format:', signature.substring(0, 50) + '...')
   const parts = signature.split(',')
   const timestamp = parts.find(p => p.startsWith('t='))?.split('=')[1]
-  const sig = parts.find(p => p.startsWith('s='))?.split('=')[1]
+  const te = parts.find(p => p.startsWith('te='))?.split('=')[1] || ''
+  const li = parts.find(p => p.startsWith('li='))?.split('=')[1] || ''
 
-  if (!timestamp || !sig) return false
+  // Use li (live) if available and non-empty, otherwise use te (test)
+  const sig = (li && li.trim().length > 0) ? li : te
+
+  console.log('🔐 [verifyWebhookSignature] PayMongo signature fields:', {
+    hasTimestamp: !!timestamp,
+    hasTestSig: !!te && te.length > 0,
+    hasLiveSig: !!li && li.length > 0,
+    selectedSig: sig ? sig.substring(0, 16) + '...' : 'none',
+    mode: (li && li.trim().length > 0) ? 'LIVE' : 'TEST'
+  })
+
+  console.log('🔐 [verifyWebhookSignature] Parsed components:', {
+    hasTimestamp: !!timestamp,
+    hasSignature: !!sig,
+    timestampLength: timestamp?.length || 0,
+    signatureLength: sig?.length || 0
+  })
+
+  if (!timestamp || !sig) {
+    console.error('❌ [verifyWebhookSignature] Invalid signature format - missing timestamp or signature')
+    return false
+  }
 
   // Construct signed payload
   const signedPayload = `${timestamp}.${payload}`
+  console.log('🔐 [verifyWebhookSignature] Signed payload length:', signedPayload.length)
 
   // Generate expected signature
   const expectedSignature = crypto
@@ -89,11 +239,26 @@ function verifyWebhookSignature(payload: string, signature: string | null): bool
     .update(signedPayload)
     .digest('hex')
 
+  console.log('🔐 [verifyWebhookSignature] Signature comparison:', {
+    receivedLength: sig.length,
+    expectedLength: expectedSignature.length,
+    receivedPreview: sig.substring(0, 16) + '...',
+    expectedPreview: expectedSignature.substring(0, 16) + '...',
+    match: sig === expectedSignature
+  })
+
   // Compare signatures (timing-safe)
-  return crypto.timingSafeEqual(
-    Buffer.from(sig),
-    Buffer.from(expectedSignature)
-  )
+  try {
+    const isValid = crypto.timingSafeEqual(
+      Buffer.from(sig),
+      Buffer.from(expectedSignature)
+    )
+    console.log('✅ [verifyWebhookSignature] Signature validation result:', isValid)
+    return isValid
+  } catch (error) {
+    console.error('❌ [verifyWebhookSignature] Signature comparison failed:', error)
+    return false
+  }
 }
 
 function normalizeReservation(relationship: any) {
@@ -127,26 +292,53 @@ async function markReservationPaidAndConfirmed({
   eventId?: string | null
   eventType: string
 }) {
+  console.log('[markReservationPaidAndConfirmed] 🎯 Starting reservation confirmation')
+  console.log('[markReservationPaidAndConfirmed] Input:', {
+    paymentId: payment?.id,
+    reservationId: payment?.reservation_id,
+    eventId,
+    eventType,
+    paymentAmount: payment?.amount
+  })
+
   if (!payment?.reservation_id) {
-    console.warn('Webhook: Payment missing reservation_id, skipping reservation update', payment?.id)
+    console.warn('[markReservationPaidAndConfirmed] ⚠️ Payment missing reservation_id, skipping reservation update', payment?.id)
     return
   }
 
   const reservationId = payment.reservation_id
   const nowISO = new Date().toISOString()
+  console.log('[markReservationPaidAndConfirmed] Timestamp:', nowISO)
 
   // Fetch current reservation state
   let reservationRecord = normalizeReservation(payment.reservations)
+  console.log('[markReservationPaidAndConfirmed] Initial reservation record from payment:', {
+    hasRecord: !!reservationRecord,
+    status: reservationRecord?.status,
+    amountPaid: reservationRecord?.amount_paid
+  })
 
   if (!reservationRecord) {
+    console.log('[markReservationPaidAndConfirmed] 🔍 Fetching reservation from database')
     const { data, error } = await supabase
       .from('reservations')
       .select('id, status, amount_paid, metadata')
       .eq('id', reservationId)
       .single()
 
+    console.log('[markReservationPaidAndConfirmed] Reservation fetch result:', {
+      found: !!data,
+      status: data?.status,
+      amountPaid: data?.amount_paid,
+      error: error ? {
+        message: error.message,
+        code: error.code,
+        details: error.details
+      } : null
+    })
+
     if (error || !data) {
-      console.error('Webhook: Failed to fetch reservation for payment completion', {
+      console.error('[markReservationPaidAndConfirmed] ❌ Failed to fetch reservation', {
         reservationId,
         error,
       })
@@ -161,10 +353,15 @@ async function markReservationPaidAndConfirmed({
   // If migration 006 NOT applied: pending → confirmed directly
 
   // Check if already in final state
+  console.log('[markReservationPaidAndConfirmed] 🔍 Checking current reservation status')
   if (reservationRecord.status === 'confirmed') {
+    console.log('[markReservationPaidAndConfirmed] ℹ️ Reservation already confirmed')
     // Already confirmed - just ensure amount_paid is synced
     if ((reservationRecord.amount_paid ?? 0) < payment.amount) {
-      console.log('Reservation already confirmed, updating amount_paid:', reservationId)
+      console.log('[markReservationPaidAndConfirmed] 💰 Syncing amount_paid:', {
+        current: reservationRecord.amount_paid,
+        new: payment.amount
+      })
       const { error: amountError } = await supabase
         .from('reservations')
         .update({
@@ -174,17 +371,20 @@ async function markReservationPaidAndConfirmed({
         .eq('id', reservationId)
 
       if (amountError) {
-        console.error('Webhook: Failed to sync reservation amount_paid', {
+        console.error('[markReservationPaidAndConfirmed] ❌ Failed to sync amount_paid', {
           reservationId,
           error: amountError,
         })
+      } else {
+        console.log('[markReservationPaidAndConfirmed] ✅ Amount synced successfully')
       }
     }
-    console.log('✅ Reservation already confirmed:', reservationId)
+    console.log('[markReservationPaidAndConfirmed] ✅ Reservation already confirmed:', reservationId)
     return
   }
 
   // First, mark as 'paid' to indicate payment successful
+  console.log('[markReservationPaidAndConfirmed] 📝 Step 1: Marking reservation as PAID')
   if (reservationRecord.status !== 'paid') {
     const paidMetadata = {
       ...(reservationRecord.metadata || {}),
@@ -197,9 +397,10 @@ async function markReservationPaidAndConfirmed({
       payment_status_history: buildStatusHistory(reservationRecord.metadata, 'paid'),
     }
 
-    console.log('Marking reservation as paid:', {
+    console.log('[markReservationPaidAndConfirmed] Attempting to update status to "paid":', {
       reservationId,
       currentStatus: reservationRecord.status,
+      targetStatus: 'paid',
       amount: payment.amount,
     })
 
@@ -216,26 +417,41 @@ async function markReservationPaidAndConfirmed({
       .single()
 
     if (paidError) {
-      console.error('Failed to mark reservation as paid:', {
+      console.error('[markReservationPaidAndConfirmed] ❌ Failed to mark reservation as paid:', {
         reservationId,
-        error: paidError,
+        error: {
+          message: paidError.message,
+          code: paidError.code,
+          details: paidError.details,
+          hint: paidError.hint
+        },
         errorCode: paidError.code,
         errorDetails: JSON.stringify(paidError, null, 2),
       })
 
       // If 'paid' status is not valid (migration 006 not applied), go directly to 'confirmed'
       if (paidError.code === '23514') { // CHECK constraint violation
-        console.warn('⚠️ Migration 006 not applied - going directly to confirmed status')
+        console.warn('[markReservationPaidAndConfirmed] ⚠️ Migration 006 NOT applied - "paid" status not in CHECK constraint')
+        console.warn('[markReservationPaidAndConfirmed] ⚠️ Will skip to "confirmed" status instead')
         // Fall through to confirm step below
       } else {
+        console.error('[markReservationPaidAndConfirmed] ❌ CRITICAL: Non-constraint error, aborting')
         throw paidError
       }
     } else {
+      console.log('[markReservationPaidAndConfirmed] ✅ Reservation marked as PAID:', {
+        id: paidReservation.id,
+        status: paidReservation.status,
+        amountPaid: paidReservation.amount_paid
+      })
       reservationRecord = paidReservation
     }
+  } else {
+    console.log('[markReservationPaidAndConfirmed] ℹ️ Reservation already in "paid" status, proceeding to confirmation')
   }
 
   // Then, mark as 'confirmed' to finalize the booking
+  console.log('[markReservationPaidAndConfirmed] 📝 Step 2: Marking reservation as CONFIRMED')
   const confirmMetadata = {
     ...(reservationRecord.metadata || {}),
     payment_confirmed_event: {
@@ -247,9 +463,10 @@ async function markReservationPaidAndConfirmed({
     payment_status_history: buildStatusHistory(reservationRecord.metadata, 'confirmed'),
   }
 
-  console.log('Confirming reservation:', {
+  console.log('[markReservationPaidAndConfirmed] Attempting to update status to "confirmed":', {
     reservationId,
     currentStatus: reservationRecord.status,
+    targetStatus: 'confirmed',
     amount: payment.amount,
   })
 
@@ -265,8 +482,20 @@ async function markReservationPaidAndConfirmed({
     .select('id, status, amount_paid')
     .single()
 
+  console.log('[markReservationPaidAndConfirmed] Confirmation update result:', {
+    success: !confirmError,
+    hasData: !!confirmedReservation,
+    status: confirmedReservation?.status,
+    error: confirmError ? {
+      message: confirmError.message,
+      code: confirmError.code,
+      details: confirmError.details,
+      hint: confirmError.hint
+    } : null
+  })
+
   if (confirmError) {
-    console.error('CRITICAL: Failed to confirm reservation after payment', {
+    console.error('[markReservationPaidAndConfirmed] ❌ CRITICAL: Failed to confirm reservation', {
       reservationId,
       error: confirmError,
       errorDetails: JSON.stringify(confirmError, null, 2),
@@ -275,11 +504,11 @@ async function markReservationPaidAndConfirmed({
   }
 
   if (!confirmedReservation) {
-    console.error('CRITICAL: Reservation update returned no data')
+    console.error('[markReservationPaidAndConfirmed] ❌ CRITICAL: Reservation update returned no data')
     throw new Error('Reservation update failed - no data returned')
   }
 
-  console.log('✅ Reservation confirmed successfully:', {
+  console.log('[markReservationPaidAndConfirmed] ✅✅✅ Reservation confirmed successfully:', {
     reservationId: confirmedReservation.id,
     status: confirmedReservation.status,
     amountPaid: confirmedReservation.amount_paid,
@@ -292,19 +521,44 @@ async function markReservationPaidAndConfirmed({
  */
 async function handleSourceChargeable(data: any, eventId?: string) {
   const sourceId = data.id
-  console.log('Source chargeable:', sourceId)
+  console.log('[handleSourceChargeable] 🔄 Starting handler')
+  console.log('[handleSourceChargeable] Source ID:', sourceId)
+  console.log('[handleSourceChargeable] Event ID:', eventId)
+  console.log('[handleSourceChargeable] Source data:', {
+    id: data.id,
+    type: data.type,
+    status: data.attributes?.status,
+    amount: data.attributes?.amount
+  })
 
   const supabase = createServiceClient()
+  console.log('[handleSourceChargeable] ✅ Supabase service client created')
 
   // Find the payment record
+  console.log('[handleSourceChargeable] 🔍 Querying payments table for external_id:', sourceId)
   const { data: payment, error: paymentError } = await supabase
     .from('payments')
     .select('*, reservations(*)')
     .eq('external_id', sourceId)
     .single()
 
+  console.log('[handleSourceChargeable] Database query result:', {
+    found: !!payment,
+    paymentId: payment?.id,
+    reservationId: payment?.reservation_id,
+    paymentStatus: payment?.status,
+    paymentAmount: payment?.amount,
+    hasReservationData: !!payment?.reservations,
+    error: paymentError ? {
+      message: paymentError.message,
+      code: paymentError.code,
+      details: paymentError.details
+    } : null
+  })
+
   if (paymentError || !payment) {
-    console.error('Payment not found for source:', sourceId)
+    console.error('[handleSourceChargeable] ❌ Payment not found for source:', sourceId)
+    console.error('[handleSourceChargeable] Database error:', paymentError)
     return
   }
 
@@ -393,13 +647,22 @@ async function handleSourceChargeable(data: any, eventId?: string) {
   const { createPayment } = await import('@/lib/paymongo/client')
 
   try {
-    // Create the actual payment/charge
+    console.log('[handleSourceChargeable] Creating payment with source:', {
+      sourceId,
+      paymentMethod: payment.payment_method,
+      amountPesos: payment.amount,
+      amountCentavos: Math.round(payment.amount * 100)
+    })
+
+    // Create the actual payment/charge from the chargeable source
+    // IMPORTANT: source.type must always be 'source' (not 'gcash' or 'paymaya')
+    // The PayMongo API knows the payment method from the source ID
     const paymentResult = await createPayment({
       amount: Math.round(payment.amount * 100), // Convert to centavos
       description: payment.metadata?.description || 'Court reservation',
       source: {
         id: sourceId,
-        type: payment.payment_method as 'gcash' | 'paymaya',
+        type: 'source', // Always 'source' per PayMongo API spec
       },
       metadata: {
         payment_id: payment.id,

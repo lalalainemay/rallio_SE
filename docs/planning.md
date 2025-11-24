@@ -49,7 +49,7 @@ Build a comprehensive Badminton Court Finder & Queue Management System for Zambo
 - Dynamic venue detail pages with image galleries
 - SSR handling for client-only map components
 
-### Phase 3: Reservations & Payments - 70% COMPLETE 🚧
+### Phase 3: Reservations & Payments - 85% COMPLETE ✅
 **Goal:** Enable court booking and payment processing
 
 - [x] Reservation creation flow (`/courts/[id]/book/`)
@@ -63,8 +63,11 @@ Build a comprehensive Badminton Court Finder & Queue Management System for Zambo
   - Checkout URL generation with QR codes
 - [x] Payment confirmation webhooks (`/api/webhooks/paymongo/`)
   - Handles `source.chargeable`, `payment.paid`, `payment.failed`
-  - Webhook signature verification
+  - ✅ **Fixed webhook signature verification** (uses `te=` and `li=` fields)
+  - ✅ **Fixed source.type** (uses literal `'source'` instead of payment method)
   - Idempotency handling for duplicate events
+  - Webhooks now properly accept with 200 status
+  - Payment flow fully functional: pending → completed
 - [x] Booking management pages (`/bookings`, `/reservations`)
 - [x] Cancellation flow (server action)
 - [x] Database-level double booking prevention (migration 004)
@@ -72,6 +75,11 @@ Build a comprehensive Badminton Court Finder & Queue Management System for Zambo
   - Validation triggers
   - Active reservations and payment summary views
 - [x] Payment expiration function (15-minute timeout)
+- [x] Home page enhancements
+  - "Queue" button linking to `/queue`
+  - Real venue data for "Suggested Courts" section
+  - Geolocation-based "Near You" section
+  - "Active Queues Nearby" section
 - [ ] Payment receipt email notifications
 - [ ] Booking reminder notifications
 - [ ] Split payment system backend implementation
@@ -82,9 +90,11 @@ Build a comprehensive Badminton Court Finder & Queue Management System for Zambo
 **Key Achievements:**
 - Complete booking flow from court selection to payment
 - Robust double booking prevention at database level
-- PayMongo webhook integration with idempotency
+- ✅ **Fully functional PayMongo webhook integration** with proper signature verification
+- ✅ **Payment status updates working correctly** (pending → completed → confirmed)
 - Real-time availability checking
 - Split payment database schema ready (UI partial, backend incomplete)
+- Enhanced home page with real venue data and geolocation
 
 **Technical Debt & Known Issues:**
 - Migration 005 (RLS policies) created but not applied
