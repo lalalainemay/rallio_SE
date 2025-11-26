@@ -4,7 +4,8 @@ import { useQueue } from '@/hooks/use-queue'
 import { PlayerCard } from '@/components/queue/player-card'
 import { QueueStatusBadge } from '@/components/queue/queue-status-badge'
 import { Users, Clock, Activity, Loader2, AlertCircle } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 interface QueueDetailsClientProps {
   courtId: string
@@ -14,6 +15,17 @@ export function QueueDetailsClient({ courtId }: QueueDetailsClientProps) {
   const { queue, isLoading, error, joinQueue, leaveQueue, refreshQueue } = useQueue(courtId)
   const [isJoining, setIsJoining] = useState(false)
   const [isLeaving, setIsLeaving] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const supabase = createClient()
+
+  // Get current user ID
+  useEffect(() => {
+    async function getCurrentUser() {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUserId(user?.id || null)
+    }
+    getCurrentUser()
+  }, [])
 
   const handleJoinQueue = async () => {
     setIsJoining(true)
@@ -161,7 +173,7 @@ export function QueueDetailsClient({ courtId }: QueueDetailsClientProps) {
               <PlayerCard
                 key={player.id}
                 player={player}
-                isCurrentUser={player.id === 'current-user'}
+                isCurrentUser={player.userId === currentUserId}
               />
             ))}
           </div>

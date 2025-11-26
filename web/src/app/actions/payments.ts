@@ -557,3 +557,211 @@ export async function processChargeableSourceAction(sourceId: string): Promise<{
     }
   }
 }
+
+/**
+ * Server Action: Initiate payment for queue session participation
+ * Creates a payment record for games played in a queue
+ */
+export async function initiateQueuePaymentAction(
+  sessionId: string,
+  paymentMethod: PaymentMethod
+): Promise<InitiatePaymentResult> {
+  console.log('[initiateQueuePaymentAction] 🚀 Starting queue payment initiation')
+  console.log('[initiateQueuePaymentAction] Input:', {
+    sessionId,
+    paymentMethod,
+  })
+
+  try {
+    const supabase = await createClient()
+
+    // Get the authenticated user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      console.error('[initiateQueuePaymentAction] ❌ User not authenticated')
+      return { success: false, error: 'User not authenticated' }
+    }
+
+    // Get participant and calculate amount owed
+    const { data: participant, error: participantError } = await supabase
+      .from('queue_participants')
+      .select(`
+        *,
+        queue_sessions (
+          cost_per_game,
+          courts (
+            name,
+            venues (
+              name
+            )
+          )
+        )
+      `)
+      .eq('queue_session_id', sessionId)
+      .eq('user_id', user.id)
+      .single()
+
+    if (participantError || !participant) {
+      return { success: false, error: 'Participant not found' }
+    }
+
+    const costPerGame = parseFloat(participant.queue_sessions.cost_per_game || '0')
+    const gamesPlayed = participant.games_played || 0
+    const totalAmount = costPerGame * gamesPlayed
+
+    if (totalAmount <= 0) {
+      return { success: false, error: 'No payment required' }
+    }
+
+    // Generate unique payment reference
+    const paymentReference = `QUEUE-${sessionId.slice(0, 8)}-${Date.now()}`
+
+    // Get user profile for billing info
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('first_name, last_name, phone')
+      .eq('id', user.id)
+      .single()
+
+    const billingName = profile
+      ? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || user.email || 'Customer'
+      : user.email || 'Customer'
+
+    const venueName = participant.queue_sessions.courts?.venues?.name ?? 'Queue Session'
+    const courtName = participant.queue_sessions.courts?.name ?? 'Court'
+    const description = `${venueName} - ${courtName} (${gamesPlayed} games)`
+
+    // Generate success/failed URLs
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const successUrl = `${baseUrl}/queue/payment/success?session=${sessionId}`
+    const failedUrl = `${baseUrl}/queue/payment/failed?session=${sessionId}`
+
+    let checkoutUrl: string
+    let sourceId: string
+
+    // Create payment source based on method
+    try {
+      if (paymentMethod === 'gcash') {
+        const result = await createGCashCheckout({
+          amount: totalAmount,
+          description,
+          successUrl,
+          failedUrl,
+          billing: {
+            name: billingName,
+            email: user.email,
+            phone: profile?.phone,
+          },
+          metadata: {
+            queue_session_id: sessionId,
+            participant_id: participant.id,
+            user_id: user.id,
+            games_played: gamesPlayed.toString(),
+            payment_reference: paymentReference,
+          },
+        })
+        checkoutUrl = result.checkoutUrl
+        sourceId = result.sourceId
+      } else if (paymentMethod === 'paymaya') {
+        const result = await createMayaCheckout({
+          amount: totalAmount,
+          description,
+          successUrl,
+          failedUrl,
+          billing: {
+            name: billingName,
+            email: user.email,
+            phone: profile?.phone,
+          },
+          metadata: {
+            queue_session_id: sessionId,
+            participant_id: participant.id,
+            user_id: user.id,
+            games_played: gamesPlayed.toString(),
+            payment_reference: paymentReference,
+          },
+        })
+        checkoutUrl = result.checkoutUrl
+        sourceId = result.sourceId
+      } else {
+        return { success: false, error: 'Cash payment not yet supported for queues' }
+      }
+    } catch (paymentError) {
+      console.error('[initiateQueuePaymentAction] PayMongo API error:', paymentError)
+      const errorMessage = paymentError instanceof Error ? paymentError.message : String(paymentError)
+
+      if (errorMessage.includes('not allowed to process') || errorMessage.includes('gcash payments')) {
+        return {
+          success: false,
+          error: 'GCash payments are currently unavailable. Please pay with cash.',
+        }
+      }
+
+      return {
+        success: false,
+        error: 'Payment provider is temporarily unavailable. Please try again later.',
+      }
+    }
+
+    // Create payment record in database
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+
+    const paymentData = {
+      reference: paymentReference,
+      user_id: user.id,
+      amount: totalAmount,
+      currency: 'PHP',
+      payment_method: paymentMethod,
+      payment_provider: 'paymongo',
+      external_id: sourceId,
+      status: 'pending' as const,
+      expires_at: expiresAt.toISOString(),
+      metadata: {
+        description,
+        checkout_url: checkoutUrl,
+        source_id: sourceId,
+        queue_session_id: sessionId,
+        participant_id: participant.id,
+        games_played: gamesPlayed,
+        payment_reference: paymentReference,
+        payment_type: 'queue_session',
+      },
+    }
+
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .insert(paymentData)
+      .select('id')
+      .single()
+
+    if (paymentError) {
+      console.error('[initiateQueuePaymentAction] ❌ Error creating payment record:', paymentError)
+      return {
+        success: false,
+        error: 'Failed to create payment record',
+      }
+    }
+
+    console.log('[initiateQueuePaymentAction] ✅ Payment initiated successfully:', {
+      paymentId: payment.id,
+      sourceId,
+      amount: totalAmount,
+    })
+
+    revalidatePath(`/queue/${participant.queue_sessions.courts?.id}`)
+    revalidatePath('/queue')
+
+    return {
+      success: true,
+      checkoutUrl,
+      paymentId: payment.id,
+      sourceId,
+    }
+  } catch (error: any) {
+    console.error('[initiateQueuePaymentAction] ❌ Error:', error)
+    return { success: false, error: error.message || 'Failed to initiate payment' }
+  }
+}
