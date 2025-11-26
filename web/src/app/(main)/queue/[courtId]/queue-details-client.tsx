@@ -72,9 +72,14 @@ export function QueueDetailsClient({ courtId }: QueueDetailsClientProps) {
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-gray-900 mb-1">
-              {queue.courtName}
-            </h2>
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-xl font-bold text-gray-900">
+                {queue.courtName}
+              </h2>
+              <span className="text-xs font-mono text-gray-400 bg-gray-50 px-2 py-1 rounded">
+                #{queue.id.slice(0, 8)}
+              </span>
+            </div>
             <p className="text-gray-600 text-sm">{queue.venueName}</p>
           </div>
           <QueueStatusBadge status={queue.status} size="md" />

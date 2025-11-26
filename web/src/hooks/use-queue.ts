@@ -369,9 +369,9 @@ export function useNearbyQueues(latitude?: number, longitude?: number) {
     fetchNearbyQueues()
   }, [latitude, longitude])
 
-  // Set up real-time subscription for queue sessions
+  // Set up real-time subscription for queue sessions and participants
   useEffect(() => {
-    console.log('[useNearbyQueues] 🔔 Setting up real-time subscription')
+    console.log('[useNearbyQueues] 🔔 Setting up real-time subscriptions')
 
     const channel = supabase
       .channel('nearby-queues')
@@ -387,10 +387,22 @@ export function useNearbyQueues(latitude?: number, longitude?: number) {
           fetchNearbyQueues()
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'queue_participants',
+        },
+        () => {
+          console.log('[useNearbyQueues] 🔔 Participant joined/left, refreshing')
+          fetchNearbyQueues()
+        }
+      )
       .subscribe()
 
     return () => {
-      console.log('[useNearbyQueues] 🔕 Cleaning up real-time subscription')
+      console.log('[useNearbyQueues] 🔕 Cleaning up real-time subscriptions')
       supabase.removeChannel(channel)
     }
   }, [])
