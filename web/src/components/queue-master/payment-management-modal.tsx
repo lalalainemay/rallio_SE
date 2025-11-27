@@ -12,6 +12,7 @@ interface PaymentManagementModalProps {
   onClose: () => void
   participant: {
     id: string
+    userId: string
     playerName: string
     avatarUrl?: string
     gamesPlayed: number
@@ -88,6 +89,7 @@ export function PaymentManagementModal({
   const handleGenerateQR = async () => {
     console.log('🔐 [PaymentModal] Generate QR clicked:', {
       participantId: participant.id,
+      userId: participant.userId,
       sessionId,
       paymentMethod: selectedPaymentMethod,
       amountOwed: participant.amountOwed,
@@ -98,8 +100,8 @@ export function PaymentManagementModal({
     setPaymentSuccess(null)
 
     try {
-      // Call the queue payment action
-      const result = await initiateQueuePaymentAction(sessionId, selectedPaymentMethod)
+      // Call the queue payment action (with userId for Queue Master)
+      const result = await initiateQueuePaymentAction(sessionId, selectedPaymentMethod, participant.userId)
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to generate payment QR code')

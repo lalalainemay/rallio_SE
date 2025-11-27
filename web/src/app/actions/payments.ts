@@ -564,12 +564,14 @@ export async function processChargeableSourceAction(sourceId: string): Promise<{
  */
 export async function initiateQueuePaymentAction(
   sessionId: string,
-  paymentMethod: PaymentMethod
+  paymentMethod: PaymentMethod,
+  userId?: string // Optional: for Queue Masters generating payment for others
 ): Promise<InitiatePaymentResult> {
   console.log('[initiateQueuePaymentAction] 🚀 Starting queue payment initiation')
   console.log('[initiateQueuePaymentAction] Input:', {
     sessionId,
     paymentMethod,
+    userId,
   })
 
   try {
@@ -585,6 +587,15 @@ export async function initiateQueuePaymentAction(
       return { success: false, error: 'User not authenticated' }
     }
 
+    // Use provided userId if given (for Queue Masters), otherwise use authenticated user
+    const targetUserId = userId || user.id
+
+    console.log('[initiateQueuePaymentAction] 🔍 Looking for participant:', {
+      sessionId,
+      targetUserId,
+      isQueueMaster: userId !== undefined,
+    })
+
     // Get participant and calculate amount owed
     const { data: participant, error: participantError } = await supabase
       .from('queue_participants')
@@ -592,6 +603,7 @@ export async function initiateQueuePaymentAction(
         *,
         queue_sessions (
           cost_per_game,
+          organizer_id,
           courts (
             name,
             venues (
@@ -601,11 +613,18 @@ export async function initiateQueuePaymentAction(
         )
       `)
       .eq('queue_session_id', sessionId)
-      .eq('user_id', user.id)
+      .eq('user_id', targetUserId)
       .single()
 
     if (participantError || !participant) {
-      return { success: false, error: 'Participant not found' }
+      console.error('[initiateQueuePaymentAction] ❌ Participant not found:', participantError)
+      return { success: false, error: 'Participant not found in this session' }
+    }
+
+    // If userId was provided, verify the requester is the queue organizer
+    if (userId && participant.queue_sessions.organizer_id !== user.id) {
+      console.error('[initiateQueuePaymentAction] ❌ Unauthorized: Not the queue organizer')
+      return { success: false, error: 'Only the queue organizer can generate payments for others' }
     }
 
     const costPerGame = parseFloat(participant.queue_sessions.cost_per_game || '0')
@@ -619,16 +638,16 @@ export async function initiateQueuePaymentAction(
     // Generate unique payment reference
     const paymentReference = `QUEUE-${sessionId.slice(0, 8)}-${Date.now()}`
 
-    // Get user profile for billing info
+    // Get user profile for billing info (for the participant, not the requester)
     const { data: profile } = await supabase
       .from('profiles')
-      .select('first_name, last_name, phone')
-      .eq('id', user.id)
+      .select('first_name, last_name, phone, email')
+      .eq('id', targetUserId)
       .single()
 
     const billingName = profile
-      ? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || user.email || 'Customer'
-      : user.email || 'Customer'
+      ? `${profile.first_name ?? ''} ${profile.last_name ?? ''}`.trim() || profile.email || 'Customer'
+      : 'Customer'
 
     const venueName = participant.queue_sessions.courts?.venues?.name ?? 'Queue Session'
     const courtName = participant.queue_sessions.courts?.name ?? 'Court'
