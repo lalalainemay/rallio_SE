@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { recordMatchScore } from '@/app/actions/match-actions'
 import { X, Trophy, Users, Loader2, CheckCircle } from 'lucide-react'
+import { MatchTimer } from './match-timer'
 
 interface ScoreRecordingModalProps {
   isOpen: boolean
@@ -11,6 +12,9 @@ interface ScoreRecordingModalProps {
     id: string
     matchNumber: number
     gameFormat: string
+    status?: string
+    started_at?: Date | string | null
+    completed_at?: Date | string | null
     teamAPlayers: Array<{ id: string; name: string; avatarUrl?: string }>
     teamBPlayers: Array<{ id: string; name: string; avatarUrl?: string }>
   }
@@ -97,7 +101,20 @@ export function ScoreRecordingModal({
               </div>
               <div>
                 <h2 className="text-xl font-bold">Record Match Score</h2>
-                <p className="text-white/80 text-sm">Match #{match.matchNumber} - {match.gameFormat}</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-white/80 text-sm">Match #{match.matchNumber} - {match.gameFormat}</p>
+                  {match.started_at && (
+                    <div className="text-white/90 text-sm flex items-center gap-1.5">
+                      <span>•</span>
+                      <MatchTimer
+                        startedAt={match.started_at}
+                        completedAt={match.completed_at}
+                        className="text-white/90"
+                        showIcon={true}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <button

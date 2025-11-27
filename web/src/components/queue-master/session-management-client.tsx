@@ -11,31 +11,35 @@ import {
   removeParticipant,
   waiveFee 
 } from '@/app/actions/queue-actions'
-import { 
-  assignMatchFromQueue, 
+import {
+  assignMatchFromQueue,
   recordMatchScore,
-  getActiveMatch 
+  getActiveMatch,
+  startMatch
 } from '@/app/actions/match-actions'
-import { 
-  Users, 
-  Clock, 
-  DollarSign, 
-  PlayCircle, 
-  PauseCircle, 
-  StopCircle, 
-  Loader2, 
+import {
+  Users,
+  Clock,
+  DollarSign,
+  PlayCircle,
+  PauseCircle,
+  StopCircle,
+  Loader2,
   AlertCircle,
   ArrowLeft,
   Plus,
   Trash2,
   CheckCircle,
   XCircle,
-  Trophy
+  Trophy,
+  Play
 } from 'lucide-react'
 import Link from 'next/link'
 import { ScoreRecordingModal } from './score-recording-modal'
 import { PaymentManagementModal } from './payment-management-modal'
 import { MatchAssignmentModal } from './match-assignment-modal'
+import { MatchTimer } from './match-timer'
+import { MatchStatusBadge } from './match-status-badge'
 
 interface SessionManagementClientProps {
   sessionId: string
@@ -415,6 +419,19 @@ export function SessionManagementClient({ sessionId }: SessionManagementClientPr
     await loadSession()
   }
 
+  const handleStartMatch = async (matchId: string) => {
+    setActionLoading(`start-${matchId}`)
+    try {
+      const result = await startMatch(matchId)
+      if (!result.success) throw new Error(result.error)
+      await loadSession()
+    } catch (err: any) {
+      alert(err.message || 'Failed to start match')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -560,26 +577,61 @@ export function SessionManagementClient({ sessionId }: SessionManagementClientPr
                 {activeMatches.map((match) => (
                   <div
                     key={match.id}
-                    className="border-2 border-green-200 bg-green-50 rounded-lg p-4"
+                    className={`border-2 rounded-lg p-4 ${
+                      match.status === 'scheduled'
+                        ? 'border-gray-200 bg-gray-50'
+                        : match.status === 'in_progress'
+                        ? 'border-green-200 bg-green-50'
+                        : 'border-blue-200 bg-blue-50'
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                          match.status === 'scheduled'
+                            ? 'bg-gray-600'
+                            : match.status === 'in_progress'
+                            ? 'bg-green-600'
+                            : 'bg-blue-600'
+                        }`}>
                           <Trophy className="w-4 h-4 text-white" />
                         </div>
                         <div>
                           <div className="font-semibold text-gray-900">Match #{match.match_number}</div>
-                          <div className="text-xs text-gray-600 capitalize">{match.status}</div>
+                          <MatchStatusBadge status={match.status} size="sm" />
                         </div>
+                        {(match.status === 'in_progress' || match.status === 'completed') && (
+                          <MatchTimer
+                            startedAt={match.started_at}
+                            completedAt={match.completed_at}
+                            className="text-gray-600"
+                          />
+                        )}
                       </div>
-                      {match.status === 'in_progress' && (
-                        <button
-                          onClick={() => handleOpenScoreModal(match)}
-                          className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                          Record Score
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {match.status === 'scheduled' && (
+                          <button
+                            onClick={() => handleStartMatch(match.id)}
+                            disabled={actionLoading === `start-${match.id}`}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                          >
+                            {actionLoading === `start-${match.id}` ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
+                            <span>Start Match</span>
+                          </button>
+                        )}
+                        {match.status === 'in_progress' && (
+                          <button
+                            onClick={() => handleOpenScoreModal(match)}
+                            className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                          >
+                            Record Score
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>

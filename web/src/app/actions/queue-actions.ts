@@ -501,33 +501,27 @@ export async function getNearbyQueues(latitude?: number, longitude?: number) {
       return { success: false, error: 'Failed to fetch queues' }
     }
 
-    const queues = await Promise.all(
-      (sessions || []).map(async (session: any) => {
-        // Get participant count
-        const { count } = await supabase
-          .from('queue_participants')
-          .select('*', { count: 'exact', head: true })
-          .eq('queue_session_id', session.id)
-          .is('left_at', null)
+    const queues = (sessions || []).map((session: any) => {
+      // Use the current_players column which is maintained by database triggers
+      const currentPlayers = session.current_players || 0
+      const estimatedWaitTime = currentPlayers * 15
 
-        const currentPlayers = count || 0
-        const estimatedWaitTime = currentPlayers * 15
+      console.log(`[getNearbyQueues] 📊 Session ${session.id.slice(0, 8)}: current_players=${currentPlayers}`)
 
-        return {
-          id: session.id,
-          courtId: session.court_id,
-          courtName: session.courts?.name || 'Unknown Court',
-          venueName: session.courts?.venues?.name || 'Unknown Venue',
-          venueId: session.courts?.venues?.id || '',
-          status: session.status,
-          players: [],
-          userPosition: null,
-          estimatedWaitTime,
-          maxPlayers: session.max_players,
-          currentPlayers,
-        }
-      })
-    )
+      return {
+        id: session.id,
+        courtId: session.court_id,
+        courtName: session.courts?.name || 'Unknown Court',
+        venueName: session.courts?.venues?.name || 'Unknown Venue',
+        venueId: session.courts?.venues?.id || '',
+        status: session.status,
+        players: [],
+        userPosition: null,
+        estimatedWaitTime,
+        maxPlayers: session.max_players,
+        currentPlayers,
+      }
+    })
 
     console.log('[getNearbyQueues] ✅ Fetched queues:', queues.length)
 
@@ -1101,7 +1095,7 @@ export async function closeQueueSession(sessionId: string): Promise<{
       .from('queue_sessions')
       .update({
         status: 'closed',
-        metadata: {
+        settings: {
           closed_at: new Date().toISOString(),
           summary,
         },
