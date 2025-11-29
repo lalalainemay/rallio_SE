@@ -132,7 +132,7 @@ export function CourtAdminDashboard() {
           </div>
           <Link
             href="/court-admin/venues"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md"
           >
             <Plus className="w-5 h-5" />
             <span className="font-semibold">Manage Venues</span>
@@ -142,59 +142,59 @@ export function CourtAdminDashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6 shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <Calendar className="w-6 h-6" />
+            <div className="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+              <Calendar className="w-6 h-6 text-blue-600" />
             </div>
-            <span className="text-3xl font-bold">{stats.todayReservations}</span>
+            <span className="text-3xl font-bold text-gray-900">{stats.todayReservations}</span>
           </div>
-          <p className="text-blue-100 text-sm font-medium">Today's Reservations</p>
-          <p className="text-white/80 text-xs mt-1">₱{stats.todayRevenue.toFixed(2)} revenue</p>
+          <p className="text-gray-700 text-sm font-medium">Today's Reservations</p>
+          <p className="text-gray-500 text-xs mt-1">₱{stats.todayRevenue.toFixed(2)} revenue</p>
         </div>
 
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white rounded-xl p-6 shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6" />
+            <div className="w-12 h-12 bg-amber-50 rounded-lg flex items-center justify-center">
+              <Clock className="w-6 h-6 text-amber-600" />
             </div>
-            <span className="text-3xl font-bold">{stats.pendingReservations}</span>
+            <span className="text-3xl font-bold text-gray-900">{stats.pendingReservations}</span>
           </div>
-          <p className="text-yellow-100 text-sm font-medium">Pending Approval</p>
-          <p className="text-white/80 text-xs mt-1">Requires your action</p>
+          <p className="text-gray-700 text-sm font-medium">Pending Approval</p>
+          <p className="text-gray-500 text-xs mt-1">Requires your action</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-6 shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6" />
+            <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-indigo-600" />
             </div>
-            <span className="text-3xl font-bold">{stats.upcomingReservations}</span>
+            <span className="text-3xl font-bold text-gray-900">{stats.upcomingReservations}</span>
           </div>
-          <p className="text-purple-100 text-sm font-medium">Upcoming (7 days)</p>
-          <p className="text-white/80 text-xs mt-1">Confirmed bookings</p>
+          <p className="text-gray-700 text-sm font-medium">Upcoming (7 days)</p>
+          <p className="text-gray-500 text-xs mt-1">Confirmed bookings</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-6 shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-6 h-6" />
+            <div className="w-12 h-12 bg-emerald-50 rounded-lg flex items-center justify-center">
+              <DollarSign className="w-6 h-6 text-emerald-600" />
             </div>
-            <span className="text-3xl font-bold">₱{stats.totalRevenue.toFixed(0)}</span>
+            <span className="text-3xl font-bold text-gray-900">₱{stats.totalRevenue.toFixed(0)}</span>
           </div>
-          <p className="text-green-100 text-sm font-medium">This Month's Revenue</p>
-          <p className="text-white/80 text-xs mt-1">Confirmed & completed</p>
+          <p className="text-gray-700 text-sm font-medium">This Month's Revenue</p>
+          <p className="text-gray-500 text-xs mt-1">Confirmed & completed</p>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl p-6 shadow-lg">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <Star className="w-6 h-6" />
+            <div className="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+              <Star className="w-6 h-6 text-orange-500" />
             </div>
-            <span className="text-3xl font-bold">{stats.averageRating.toFixed(1)}</span>
+            <span className="text-3xl font-bold text-gray-900">{stats.averageRating.toFixed(1)}</span>
           </div>
-          <p className="text-orange-100 text-sm font-medium">Average Rating</p>
-          <p className="text-white/80 text-xs mt-1">From customer reviews</p>
+          <p className="text-gray-700 text-sm font-medium">Average Rating</p>
+          <p className="text-gray-500 text-xs mt-1">From customer reviews</p>
         </div>
       </div>
 
@@ -202,20 +202,20 @@ export function CourtAdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Link
           href="/court-admin/reservations?status=pending"
-          className="bg-white border-2 border-yellow-200 rounded-xl p-4 hover:shadow-lg transition-all duration-200 hover:border-yellow-300 group"
+          className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200 hover:border-amber-200 group"
         >
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-gray-900 mb-1">Review Pending</h3>
               <p className="text-sm text-gray-600">Approve or reject reservations</p>
             </div>
-            <ArrowRight className="w-5 h-5 text-yellow-600 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="w-5 h-5 text-amber-600 group-hover:translate-x-1 transition-transform" />
           </div>
         </Link>
 
         <Link
           href="/court-admin/reservations"
-          className="bg-white border-2 border-blue-200 rounded-xl p-4 hover:shadow-lg transition-all duration-200 hover:border-blue-300 group"
+          className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200 hover:border-blue-200 group"
         >
           <div className="flex items-center justify-between">
             <div>
@@ -228,14 +228,14 @@ export function CourtAdminDashboard() {
 
         <Link
           href="/court-admin/analytics"
-          className="bg-white border-2 border-green-200 rounded-xl p-4 hover:shadow-lg transition-all duration-200 hover:border-green-300 group"
+          className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200 hover:border-emerald-200 group"
         >
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold text-gray-900 mb-1">View Analytics</h3>
               <p className="text-sm text-gray-600">Revenue trends and insights</p>
             </div>
-            <ArrowRight className="w-5 h-5 text-green-600 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="w-5 h-5 text-emerald-600 group-hover:translate-x-1 transition-transform" />
           </div>
         </Link>
       </div>

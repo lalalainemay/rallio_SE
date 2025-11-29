@@ -146,7 +146,7 @@ export function VenueManagement() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Venues & Courts</h1>
             <p className="text-gray-600">Manage your venues and court listings</p>
           </div>
-          <button className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl">
+          <button className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors shadow-sm hover:shadow-md">
             <Plus className="w-5 h-5" />
             <span className="font-semibold">Add Venue</span>
           </button>
@@ -282,7 +282,7 @@ export function VenueManagement() {
                   <h2 className="text-xl font-bold text-gray-900">
                     Courts ({courts.length})
                   </h2>
-                  <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  <button className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
                     <Plus className="w-4 h-4" />
                     <span>Add Court</span>
                   </button>
@@ -301,7 +301,7 @@ export function VenueManagement() {
                     <p className="text-sm text-gray-500 mb-4">
                       Add courts to this venue to start accepting reservations
                     </p>
-                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <button className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
                       <Plus className="w-4 h-4" />
                       <span>Add Your First Court</span>
                     </button>

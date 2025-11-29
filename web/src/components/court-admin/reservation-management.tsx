@@ -278,7 +278,7 @@ export function ReservationManagement() {
           onClick={() => setStatusFilter('all')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
             statusFilter === 'all'
-              ? 'bg-blue-600 text-white shadow-sm'
+              ? 'bg-primary text-white shadow-sm'
               : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
@@ -288,7 +288,7 @@ export function ReservationManagement() {
           onClick={() => setStatusFilter('pending')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
             statusFilter === 'pending'
-              ? 'bg-yellow-500 text-white shadow-sm'
+              ? 'bg-amber-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
@@ -298,7 +298,7 @@ export function ReservationManagement() {
           onClick={() => setStatusFilter('confirmed')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
             statusFilter === 'confirmed'
-              ? 'bg-green-600 text-white shadow-sm'
+              ? 'bg-emerald-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
@@ -308,7 +308,7 @@ export function ReservationManagement() {
           onClick={() => setStatusFilter('completed')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
             statusFilter === 'completed'
-              ? 'bg-blue-600 text-white shadow-sm'
+              ? 'bg-blue-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
@@ -318,7 +318,7 @@ export function ReservationManagement() {
           onClick={() => setStatusFilter('cancelled')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
             statusFilter === 'cancelled'
-              ? 'bg-red-600 text-white shadow-sm'
+              ? 'bg-rose-500 text-white shadow-sm'
               : 'text-gray-600 hover:bg-gray-100'
           }`}
         >
