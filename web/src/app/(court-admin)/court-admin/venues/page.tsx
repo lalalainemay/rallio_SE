@@ -1,11 +1,11 @@
 import { Metadata } from 'next'
-import { VenueManagement } from '@/components/court-admin/venue-management'
+import { VenueList } from '@/components/court-admin/venue-list'
 
 export const metadata: Metadata = {
-  title: 'Venues & Courts | Court Admin',
-  description: 'Manage your venues and courts',
+  title: 'My Venues | Court Admin',
+  description: 'Manage your badminton court venues',
 }
 
 export default function VenuesPage() {
-  return <VenueManagement />
+  return <VenueList />
 }

@@ -43,11 +43,7 @@ export function CourtAdminSidebar({ user, venues }: CourtAdminSidebarProps) {
   const navItems = [
     { href: '/court-admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
     { href: '/court-admin/reservations', label: 'Reservations', icon: Calendar },
-    { href: '/court-admin/venues', label: 'Venues & Courts', icon: Building2 },
-    { href: '/court-admin/availability', label: 'Availability', icon: Clock },
-    { href: '/court-admin/pricing', label: 'Pricing', icon: DollarSign },
-    { href: '/court-admin/analytics', label: 'Analytics', icon: BarChart3 },
-    { href: '/court-admin/reviews', label: 'Reviews', icon: Star },
+    { href: '/court-admin/venues', label: 'My Venues', icon: Building2 },
     { href: '/', label: 'Back to Home', icon: ArrowLeft, isExternal: true },
   ]
 
@@ -84,20 +80,6 @@ export function CourtAdminSidebar({ user, venues }: CourtAdminSidebarProps) {
               )}
             </Link>
           </div>
-
-          {/* Venue Selector (if multiple venues) */}
-          {isExpanded && venues.length > 1 && (
-            <div className="px-3 mb-4 pt-4">
-              <select className="w-full px-3 py-2 bg-gray-50 text-gray-900 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
-                <option value="">All Venues</option>
-                {venues.map((venue) => (
-                  <option key={venue.id} value={venue.id}>
-                    {venue.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* Nav Links */}
           <nav className="flex-1 px-3 space-y-1">
