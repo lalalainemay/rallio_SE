@@ -7,11 +7,12 @@ export const metadata: Metadata = {
 }
 
 interface VenueDetailPageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
-export default function VenueDetailPage({ params }: VenueDetailPageProps) {
-  return <VenueDetail venueId={params.id} />
+export default async function VenueDetailPage({ params }: VenueDetailPageProps) {
+  const { id } = await params
+  return <VenueDetail venueId={id} />
 }

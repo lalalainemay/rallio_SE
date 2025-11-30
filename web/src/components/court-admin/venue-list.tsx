@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Building2,
@@ -14,8 +14,12 @@ import {
   Calendar,
   DollarSign,
   CheckCircle,
-  XCircle
+  XCircle,
+  Loader2,
+  AlertCircle,
+  X
 } from 'lucide-react'
+import { getMyVenues, createVenue } from '@/app/actions/court-admin-actions'
 
 interface Venue {
   id: string
@@ -27,75 +31,109 @@ interface Venue {
   email?: string
   is_active: boolean
   is_verified: boolean
-  stats: {
-    totalCourts: number
-    activeReservations: number
-    monthlyRevenue: number
-    averageRating: number
-  }
+  courts?: Array<{ count: number }>
 }
 
-// Mock data matching database schema
-const MOCK_VENUES: Venue[] = [
-  {
-    id: '1',
-    name: 'Sunrise Sports Complex',
-    description: 'Premium badminton facility with 6 professional courts',
-    address: 'Gov. Camins Ave, Zamboanga City',
-    city: 'Zamboanga City',
-    phone: '+63 912 345 6789',
-    email: 'info@sunrisesports.ph',
-    is_active: true,
-    is_verified: true,
-    stats: {
-      totalCourts: 6,
-      activeReservations: 12,
-      monthlyRevenue: 85000,
-      averageRating: 4.8
-    }
-  },
-  {
-    id: '2',
-    name: 'Metro Badminton Center',
-    description: 'Family-friendly courts with air conditioning',
-    address: 'Veterans Ave, Zamboanga City',
-    city: 'Zamboanga City',
-    phone: '+63 917 234 5678',
-    email: 'contact@metrobadminton.ph',
-    is_active: true,
-    is_verified: true,
-    stats: {
-      totalCourts: 4,
-      activeReservations: 8,
-      monthlyRevenue: 62000,
-      averageRating: 4.6
-    }
-  },
-  {
-    id: '3',
-    name: 'Champions Court Arena',
-    description: 'Tournament-grade facilities for professional players',
-    address: 'Mayor Jaldon St, Zamboanga City',
-    city: 'Zamboanga City',
-    phone: '+63 905 678 9012',
-    email: 'hello@championsarena.ph',
-    is_active: true,
-    is_verified: false,
-    stats: {
-      totalCourts: 8,
-      activeReservations: 15,
-      monthlyRevenue: 125000,
-      averageRating: 4.9
-    }
-  },
-]
-
 export function VenueList() {
-  const [venues] = useState<Venue[]>(MOCK_VENUES)
+  const [venues, setVenues] = useState<Venue[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    address: '',
+    city: 'Zamboanga City',
+    phone: '',
+    email: '',
+    website: ''
+  })
 
-  const totalRevenue = venues.reduce((acc, v) => acc + v.stats.monthlyRevenue, 0)
-  const totalCourts = venues.reduce((acc, v) => acc + v.stats.totalCourts, 0)
-  const totalReservations = venues.reduce((acc, v) => acc + v.stats.activeReservations, 0)
+  useEffect(() => {
+    loadVenues()
+  }, [])
+
+  const loadVenues = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await getMyVenues()
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+      setVenues(result.venues || [])
+    } catch (err: any) {
+      setError(err.message || 'Failed to load venues')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleCreateVenue = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.name.trim()) {
+      alert('Venue name is required')
+      return
+    }
+
+    setIsCreating(true)
+    try {
+      const result = await createVenue(formData)
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+      // Reset form and close modal
+      setFormData({
+        name: '',
+        description: '',
+        address: '',
+        city: 'Zamboanga City',
+        phone: '',
+        email: '',
+        website: ''
+      })
+      setShowCreateModal(false)
+      // Reload venues
+      await loadVenues()
+    } catch (err: any) {
+      alert(err.message || 'Failed to create venue')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const totalCourts = venues.reduce((acc, v) => (v.courts?.[0]?.count || 0) + acc, 0)
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-red-900 mb-1">Error Loading Venues</h3>
+            <p className="text-sm text-red-700">{error}</p>
+            <button
+              onClick={loadVenues}
+              className="mt-3 text-sm text-red-700 underline hover:text-red-900"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -106,7 +144,10 @@ export function VenueList() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">My Venues</h1>
             <p className="text-gray-600">Manage your badminton court venues</p>
           </div>
-          <button className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md">
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
+          >
             <Plus className="w-5 h-5" />
             <span className="font-semibold">Add Venue</span>
           </button>
@@ -141,11 +182,11 @@ export function VenueList() {
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-green-600" />
+                <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Monthly Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">₱{(totalRevenue / 1000).toFixed(0)}k</p>
+                <p className="text-sm text-gray-500">Active Venues</p>
+                <p className="text-2xl font-bold text-gray-900">{venues.filter(v => v.is_active).length}</p>
               </div>
             </div>
           </div>
@@ -153,11 +194,11 @@ export function VenueList() {
           <div className="bg-white border border-gray-200 rounded-xl p-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-orange-600" />
+                <Star className="w-6 h-6 text-orange-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Active Bookings</p>
-                <p className="text-2xl font-bold text-gray-900">{totalReservations}</p>
+                <p className="text-sm text-gray-500">Verified Venues</p>
+                <p className="text-2xl font-bold text-gray-900">{venues.filter(v => v.is_verified).length}</p>
               </div>
             </div>
           </div>
@@ -174,7 +215,10 @@ export function VenueList() {
           <p className="text-gray-500 mb-6 max-w-md mx-auto">
             Create your first venue to start managing courts and accepting reservations.
           </p>
-          <button className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <Plus className="w-5 h-5" />
             <span>Create First Venue</span>
           </button>
@@ -232,25 +276,25 @@ export function VenueList() {
 
               {/* Stats */}
               <div className="pt-4 border-t border-gray-200">
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-900">{venue.stats.totalCourts}</p>
+                    <p className="text-2xl font-bold text-gray-900">{venue.courts?.[0]?.count || 0}</p>
                     <p className="text-xs text-gray-500 mt-1">Courts</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-900">{venue.stats.activeReservations}</p>
-                    <p className="text-xs text-gray-500 mt-1">Active</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-900">₱{(venue.stats.monthlyRevenue / 1000).toFixed(0)}k</p>
-                    <p className="text-xs text-gray-500 mt-1">Revenue</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <p className="text-2xl font-bold text-gray-900">{venue.stats.averageRating}</p>
+                    <div className="space-y-1">
+                      <p className={`text-sm font-medium ${
+                        venue.is_active ? 'text-green-600' : 'text-gray-400'
+                      }`}>
+                        {venue.is_active ? 'Active' : 'Inactive'}
+                      </p>
+                      <p className={`text-xs font-medium ${
+                        venue.is_verified ? 'text-blue-600' : 'text-yellow-600'
+                      }`}>
+                        {venue.is_verified ? 'Verified' : 'Pending Verification'}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Rating</p>
+                    <p className="text-xs text-gray-500 mt-1">Status</p>
                   </div>
                 </div>
               </div>
@@ -282,6 +326,163 @@ export function VenueList() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Create Venue Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-white" />
+                  </div>
+                  Create New Venue
+                </h2>
+                <p className="text-sm text-gray-600 mt-2 ml-13">Add a new badminton court venue to your portfolio</p>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleCreateVenue} className="p-8 space-y-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+              {/* Venue Name */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Venue Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g., Sunrise Sports Complex"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Describe your venue facilities, features, and amenities..."
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none resize-none"
+                />
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-gray-500" />
+                    Address
+                  </div>
+                </label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="e.g., Gov. Camins Ave"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                />
+              </div>
+
+              {/* City */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  City
+                </label>
+                <input
+                  type="text"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  placeholder="Zamboanga City"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                />
+              </div>
+
+              {/* Phone & Email */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-gray-500" />
+                      Phone
+                    </div>
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+63 912 345 6789"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-gray-500" />
+                      Email
+                    </div>
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    placeholder="info@venue.com"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Website */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Website (Optional)
+                </label>
+                <input
+                  type="url"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  placeholder="https://www.yourwebsite.com"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                />
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 pt-6 mt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  disabled={isCreating}
+                  className="px-6 py-2.5 text-gray-700 font-medium hover:bg-gray-100 rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreating || !formData.name.trim()}
+                  className="inline-flex items-center gap-2 px-8 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCreating && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {isCreating ? 'Creating...' : 'Create Venue'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

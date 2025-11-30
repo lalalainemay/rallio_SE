@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Building2,
@@ -13,9 +13,12 @@ import {
   Phone,
   Mail,
   CheckCircle,
-  Edit
+  Edit,
+  Loader2,
+  AlertCircle
 } from 'lucide-react'
 import Link from 'next/link'
+import { getVenueById } from '@/app/actions/court-admin-actions'
 import { VenueCourts } from './venue-courts'
 import { PricingManagement } from './pricing-management'
 import { AvailabilityManagement } from './availability-management'
@@ -26,31 +29,65 @@ interface VenueDetailProps {
   venueId: string
 }
 
-// Mock venue data
-const MOCK_VENUE = {
-  id: '1',
-  name: 'Sunrise Sports Complex',
-  description: 'Premium badminton facility with 6 professional courts',
-  address: 'Gov. Camins Ave, Zamboanga City',
-  city: 'Zamboanga City',
-  phone: '+63 912 345 6789',
-  email: 'info@sunrisesports.ph',
-  is_active: true,
-  is_verified: true,
-  stats: {
-    totalCourts: 6,
-    activeReservations: 12,
-    monthlyRevenue: 85000,
-    averageRating: 4.8
-  }
-}
-
 export function VenueDetail({ venueId }: VenueDetailProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const activeTab = searchParams.get('tab') || 'courts'
 
-  const [venue] = useState(MOCK_VENUE)
+  const [venue, setVenue] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    loadVenue()
+  }, [venueId])
+
+  const loadVenue = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const result = await getVenueById(venueId)
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+      setVenue(result.venue)
+    } catch (err: any) {
+      setError(err.message || 'Failed to load venue')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !venue) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-red-900 mb-1">Error Loading Venue</h3>
+            <p className="text-sm text-red-700">{error || 'Venue not found'}</p>
+            <Link
+              href="/court-admin/venues"
+              className="inline-flex items-center gap-2 mt-4 text-sm text-red-700 hover:text-red-900 font-medium"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to My Venues
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const tabs = [
     { id: 'courts', label: 'Courts', icon: Building2 },
@@ -122,25 +159,34 @@ export function VenueDetail({ venueId }: VenueDetailProps) {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-200">
+        <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-gray-200">
           <div className="text-center">
-            <p className="text-3xl font-bold text-gray-900">{venue.stats.totalCourts}</p>
+            <p className="text-3xl font-bold text-gray-900">{venue.courts?.[0]?.count || 0}</p>
             <p className="text-sm text-gray-500 mt-1">Courts</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-gray-900">{venue.stats.activeReservations}</p>
-            <p className="text-sm text-gray-500 mt-1">Active Bookings</p>
-          </div>
-          <div className="text-center">
-            <p className="text-3xl font-bold text-gray-900">₱{(venue.stats.monthlyRevenue / 1000).toFixed(0)}k</p>
-            <p className="text-sm text-gray-500 mt-1">Monthly Revenue</p>
-          </div>
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-1">
-              <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-              <p className="text-3xl font-bold text-gray-900">{venue.stats.averageRating}</p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                {venue.is_active ? (
+                  <>
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <p className="text-lg font-semibold text-green-600">Active</p>
+                  </>
+                ) : (
+                  <p className="text-lg font-semibold text-gray-400">Inactive</p>
+                )}
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  venue.is_verified
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-yellow-100 text-yellow-700 border border-yellow-200'
+                }`}>
+                  {venue.is_verified ? 'Verified' : 'Pending Verification'}
+                </span>
+              </div>
             </div>
-            <p className="text-sm text-gray-500 mt-1">Average Rating</p>
+            <p className="text-sm text-gray-500 mt-1">Status</p>
           </div>
         </div>
       </div>
@@ -173,10 +219,10 @@ export function VenueDetail({ venueId }: VenueDetailProps) {
       {/* Tab Content */}
       <div className="min-h-96">
         {activeTab === 'courts' && <VenueCourts venueId={venueId} />}
-        {activeTab === 'pricing' && <PricingManagement />}
-        {activeTab === 'availability' && <AvailabilityManagement />}
-        {activeTab === 'analytics' && <AnalyticsDashboard />}
-        {activeTab === 'reviews' && <ReviewsManagement />}
+        {activeTab === 'pricing' && <PricingManagement venueId={venueId} />}
+        {activeTab === 'availability' && <AvailabilityManagement venueId={venueId} />}
+        {activeTab === 'analytics' && <AnalyticsDashboard venueId={venueId} />}
+        {activeTab === 'reviews' && <ReviewsManagement venueId={venueId} />}
       </div>
     </div>
   )

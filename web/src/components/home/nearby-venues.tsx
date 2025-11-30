@@ -122,8 +122,8 @@ export function NearbyVenues() {
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {venues.slice(0, 4).map((venue) => {
         const isOpen = isVenueOpen(venue.opening_hours)
-        const primaryImage = venue.courts[0]?.images?.find((img) => img.is_primary)
-        const imageUrl = primaryImage?.url || venue.courts[0]?.images?.[0]?.url
+        const primaryImage = venue.courts?.[0]?.images?.find((img) => img.is_primary)
+        const imageUrl = primaryImage?.url || venue.courts?.[0]?.images?.[0]?.url
 
         return (
           <div key={venue.id} className="bg-gray-100 rounded-xl overflow-hidden hover:shadow-md transition-shadow">

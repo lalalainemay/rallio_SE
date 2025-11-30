@@ -443,6 +443,184 @@ export async function updateVenue(venueId: string, updates: {
 }
 
 /**
+ * Get a single venue by ID (with full details)
+ */
+export async function getVenueById(venueId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+
+  try {
+    const { data: venue, error } = await supabase
+      .from('venues')
+      .select(`
+        *,
+        courts:courts(count)
+      `)
+      .eq('id', venueId)
+      .eq('owner_id', user.id)
+      .single()
+
+    if (error) throw error
+
+    if (!venue) {
+      return { success: false, error: 'Venue not found or access denied' }
+    }
+
+    return { success: true, venue }
+  } catch (error: any) {
+    console.error('Error fetching venue:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Create a new venue
+ */
+export async function createVenue(venueData: {
+  name: string
+  description?: string
+  address?: string
+  city?: string
+  latitude?: number
+  longitude?: number
+  phone?: string
+  email?: string
+  website?: string
+  opening_hours?: Record<string, { open: string; close: string }>
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+
+  try {
+    // Check if user has court_admin role
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role:roles(name)')
+      .eq('user_id', user.id)
+
+    const hasCourtAdminRole = roles?.some(
+      (r: any) => r.role?.name === 'court_admin' || r.role?.name === 'global_admin'
+    )
+
+    if (!hasCourtAdminRole) {
+      return {
+        success: false,
+        error: 'You must have Court Admin role to create venues. Please contact support.'
+      }
+    }
+
+    // Create venue
+    const { data: venue, error } = await supabase
+      .from('venues')
+      .insert({
+        owner_id: user.id,
+        name: venueData.name,
+        description: venueData.description,
+        address: venueData.address,
+        city: venueData.city || 'Zamboanga City',
+        latitude: venueData.latitude,
+        longitude: venueData.longitude,
+        phone: venueData.phone,
+        email: venueData.email,
+        website: venueData.website,
+        opening_hours: venueData.opening_hours,
+        is_active: true,
+        is_verified: false, // Requires admin verification
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    revalidatePath('/court-admin/venues')
+    revalidatePath('/court-admin')
+
+    return { success: true, venue }
+  } catch (error: any) {
+    console.error('Error creating venue:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Soft delete a venue (set is_active = false)
+ */
+export async function deleteVenue(venueId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+
+  try {
+    // Verify ownership
+    const { data: venue } = await supabase
+      .from('venues')
+      .select('owner_id')
+      .eq('id', venueId)
+      .single()
+
+    if (!venue || venue.owner_id !== user.id) {
+      return { success: false, error: 'Unauthorized - You do not own this venue' }
+    }
+
+    // Check for active courts
+    const { data: activeCourts } = await supabase
+      .from('courts')
+      .select('id')
+      .eq('venue_id', venueId)
+      .eq('is_active', true)
+
+    if (activeCourts && activeCourts.length > 0) {
+      return {
+        success: false,
+        error: `Cannot delete venue with ${activeCourts.length} active court(s). Please deactivate them first.`
+      }
+    }
+
+    // Check for active reservations
+    const { data: activeReservations } = await supabase
+      .from('reservations')
+      .select('id, court:courts!inner(venue_id)')
+      .eq('court.venue_id', venueId)
+      .in('status', ['pending', 'confirmed'])
+      .gte('start_time', new Date().toISOString())
+
+    if (activeReservations && activeReservations.length > 0) {
+      return {
+        success: false,
+        error: `Cannot delete venue with ${activeReservations.length} active reservation(s). Please cancel them first.`
+      }
+    }
+
+    // Soft delete (set is_active = false)
+    const { error } = await supabase
+      .from('venues')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', venueId)
+
+    if (error) throw error
+
+    revalidatePath('/court-admin/venues')
+    revalidatePath('/court-admin')
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error deleting venue:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
  * Get courts for a venue
  */
 export async function getVenueCourts(venueId: string) {

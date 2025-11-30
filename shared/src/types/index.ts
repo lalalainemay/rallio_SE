@@ -244,3 +244,102 @@ export interface VenueWithCourts extends Venue {
   averageRating?: number;
   totalReviews?: number;
 }
+
+// Court Admin Types
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
+export interface QueueSessionApproval {
+  id: string;
+  courtId: string;
+  courtName: string;
+  venueId: string;
+  venueName: string;
+  organizerId: string;
+  organizerName: string;
+  organizerAvatar?: string;
+  organizerSkillLevel?: number;
+  organizerRating?: number;
+  startTime: Date;
+  endTime: Date;
+  mode: 'casual' | 'competitive';
+  gameFormat: 'singles' | 'doubles' | 'mixed';
+  maxPlayers: number;
+  costPerGame?: number;
+  isPublic: boolean;
+  settings?: Record<string, any>;
+  approvalExpiresAt?: Date;
+  createdAt: Date;
+}
+
+export interface VenueWithStats extends Venue {
+  totalCourts: number;
+  activeCourts: number;
+  totalReservations: number;
+  monthlyRevenue: number;
+  averageRating: number;
+}
+
+export interface CourtAdminDashboardStats {
+  todayReservations: number;
+  todayRevenue: number;
+  pendingReservations: number;
+  upcomingReservations: number;
+  totalRevenue: number; // Current month
+  averageRating: number;
+  pendingApprovals?: number;
+  expiringSoonApprovals?: number;
+}
+
+export interface CourtPerformance {
+  courtId: string;
+  courtName: string;
+  hourlyRate: number;
+  isActive: boolean;
+  bookings: number;
+  confirmedBookings: number;
+  revenue: number;
+  bookedHours: number;
+  utilizationRate: number; // Percentage
+}
+
+export interface VenueAnalytics {
+  totalRevenue: number;
+  totalBookings: number;
+  confirmedBookings: number;
+  cancelledBookings: number;
+  utilizationRate: number; // Percentage
+  averageBookingValue: number;
+  revenueByDay: Array<{ date: string; revenue: number }>;
+  bookingsByStatus: Record<string, number>;
+}
+
+export interface PeakHour {
+  hour: number; // 0-23
+  hourLabel: string; // e.g., "14:00"
+  bookings: number;
+}
+
+export interface RevenueComparison {
+  thisMonth: number;
+  lastMonth: number;
+  percentageChange: number;
+  trend: 'up' | 'down' | 'stable';
+}
+
+export interface ReviewStats {
+  totalReviews: number;
+  averageRating: number;
+  ratingDistribution: Record<number, number>; // 1-5 stars
+  reviewsWithResponse: number;
+  reviewsWithoutResponse: number;
+}
+
+export interface BlockedDate {
+  id: string;
+  courtId?: string; // If null, applies to entire venue
+  startDate: string;
+  endDate: string;
+  reason: string;
+  blockType: 'maintenance' | 'holiday' | 'private_event' | 'other';
+  createdAt: string;
+}

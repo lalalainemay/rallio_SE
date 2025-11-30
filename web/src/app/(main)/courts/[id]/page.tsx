@@ -50,11 +50,23 @@ export default async function VenueDetailPage({ params }: { params: Promise<{ id
 
   const openingHours = formatOpeningHours(venue.opening_hours)
 
-  // Mock images for demonstration - in production, these would come from the database
-  const venueImages = [
+  // Collect all court images from active courts
+  const allCourtImages: string[] = []
+  activeCourts.forEach(court => {
+    if (court.images && court.images.length > 0) {
+      // Sort by display_order and is_primary
+      const sortedImages = [...court.images].sort((a, b) => {
+        if (a.is_primary && !b.is_primary) return -1
+        if (!a.is_primary && b.is_primary) return 1
+        return (a.display_order || 0) - (b.display_order || 0)
+      })
+      allCourtImages.push(...sortedImages.map(img => img.url))
+    }
+  })
+
+  // Use court images if available, otherwise use placeholder
+  const venueImages = allCourtImages.length > 0 ? allCourtImages : [
     'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=2070',
-    'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=2070',
-    'https://images.unsplash.com/photo-1609710228159-0fa9bd7c0827?q=80&w=2070',
   ]
 
   return (
