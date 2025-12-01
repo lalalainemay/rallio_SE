@@ -11,6 +11,7 @@ export interface VenueFilters {
   maxPrice?: number
   amenities?: string[]
   courtType?: 'indoor' | 'outdoor' | null
+  minRating?: number
   latitude?: number
   longitude?: number
   radiusKm?: number
@@ -129,6 +130,7 @@ export async function getVenues(filters: VenueFilters = {}): Promise<{
     maxPrice = 10000,
     amenities = [],
     courtType,
+    minRating = 0,
     latitude,
     longitude,
     radiusKm = 50,
@@ -251,6 +253,11 @@ export async function getVenues(filters: VenueFilters = {}): Promise<{
           venue.amenities.includes(amenity)
         )
         if (!hasAllAmenities) return false
+      }
+      
+      // Rating filter
+      if (minRating > 0 && (!venue.averageRating || venue.averageRating < minRating)) {
+        return false
       }
       
       return true

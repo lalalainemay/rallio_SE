@@ -55,7 +55,7 @@ export default function CourtsPage() {
 
   useEffect(() => {
     fetchVenues(true)
-  }, [search, priceRange, selectedAmenities, courtType, sortBy, userLocation])
+  }, [search, priceRange, selectedAmenities, courtType, sortBy, minRating, userLocation])
 
   const fetchVenues = async (reset: boolean = false) => {
     if (reset) {
@@ -71,6 +71,7 @@ export default function CourtsPage() {
       maxPrice: priceRange[1],
       amenities: selectedAmenities.length > 0 ? selectedAmenities : undefined,
       courtType: courtType || undefined,
+      minRating: minRating > 0 ? minRating : undefined,
       latitude: userLocation?.lat,
       longitude: userLocation?.lng,
       sortBy,
