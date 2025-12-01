@@ -96,6 +96,12 @@ export function ReviewsSection({ courtIds, venueName, firstCourtName }: ReviewsS
           })
         }
       } catch (error) {
+        console.error('Error fetching reviews:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
     if (courtIds.length > 0) {
       fetchReviews()
     }
