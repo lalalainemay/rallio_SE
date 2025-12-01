@@ -376,21 +376,8 @@ export function ReviewsSection({ courtIds, venueName, firstCourtName }: ReviewsS
             </button>
           </div>
         ) : (
-          displayedReviews.map((review) => (tems-center justify-between mb-1">
-              <span className="text-xs text-gray-600">Value</span>
-              <span className="text-xs font-semibold text-gray-900">{stats.averageValue.toFixed(1)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              {renderStars(stats.averageValue, 'sm')}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Individual Reviews */}
-      <div className="space-y-4">
-        {reviews.map((review) => (
-          <div key={review.id} className="border border-gray-200 rounded-xl p-4">
+          displayedReviews.map((review) => (
+            <div key={review.id} className="border border-gray-200 rounded-xl p-4">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                 {review.user.avatar_url ? (
