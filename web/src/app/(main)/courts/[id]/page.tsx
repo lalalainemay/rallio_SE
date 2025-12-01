@@ -116,7 +116,11 @@ export default async function VenueDetailPage({ params }: { params: Promise<{ id
             />
 
             {/* Reviews Section */}
-            <ReviewsSection courtIds={activeCourts.map((c) => c.id)} />
+            <ReviewsSection
+              courtIds={activeCourts.map((c) => c.id)}
+              venueName={venue.name}
+              firstCourtName={activeCourts[0]?.name}
+            />
           </div>
 
           {/* Right Column - Sidebar */}
