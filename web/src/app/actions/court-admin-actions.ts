@@ -663,3 +663,55 @@ export async function getVenueCourts(venueId: string) {
     return { success: false, error: error.message }
   }
 }
+
+/**
+ * Get pending (unverified) courts for the current court admin
+ */
+export async function getPendingCourts() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+
+  try {
+    // Get venue IDs owned by user
+    const { data: venues } = await supabase
+      .from('venues')
+      .select('id')
+      .eq('owner_id', user.id)
+
+    const venueIds = venues?.map(v => v.id) || []
+
+    if (venueIds.length === 0) {
+      return { success: true, courts: [] }
+    }
+
+    // Get unverified courts
+    const { data: courts, error } = await supabase
+      .from('courts')
+      .select(`
+        *,
+        venue:venue_id (
+          id,
+          name,
+          city,
+          address
+        ),
+        court_amenities(
+          amenity:amenities(id, name, icon)
+        )
+      `)
+      .in('venue_id', venueIds)
+      .eq('is_verified', false)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    return { success: true, courts: courts || [] }
+  } catch (error: any) {
+    console.error('Error fetching pending courts:', error)
+    return { success: false, error: error.message }
+  }
+}

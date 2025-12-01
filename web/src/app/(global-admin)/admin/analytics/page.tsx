@@ -1,4 +1,5 @@
 import { Metadata } from 'next'
+import AnalyticsDashboard from '@/components/global-admin/analytics-dashboard'
 
 export const metadata: Metadata = {
   title: 'Analytics | Admin',
@@ -6,10 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function AnalyticsPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Platform Analytics</h1>
-      <p className="text-gray-600">Coming soon...</p>
-    </div>
-  )
+  return <AnalyticsDashboard />
 }

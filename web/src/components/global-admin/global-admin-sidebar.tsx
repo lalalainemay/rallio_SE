@@ -78,17 +78,8 @@ export default function GlobalAdminSidebar({ user }: GlobalAdminSidebarProps) {
             </Link>
           </div>
 
-          {/* Role Badge */}
-          {isExpanded && (
-            <div className="px-4 pb-4">
-              <div className="bg-purple-800/50 rounded-lg px-3 py-2 text-xs text-white/90">
-                Logged in as <span className="font-semibold">Global Admin</span>
-              </div>
-            </div>
-          )}
-
           {/* Nav Links */}
-          <nav className="flex-1 px-3 space-y-1">
+          <nav className="flex-1 px-3 space-y-1 mt-4">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = item.exact
