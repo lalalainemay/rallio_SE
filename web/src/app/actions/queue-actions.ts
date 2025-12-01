@@ -512,7 +512,7 @@ export async function getNearbyQueues(latitude?: number, longitude?: number) {
   try {
     const supabase = await createClient()
 
-    // Get active queue sessions
+    // Get active queue sessions - ONLY approved sessions
     const { data: sessions, error: sessionsError } = await supabase
       .from('queue_sessions')
       .select(`
@@ -530,6 +530,7 @@ export async function getNearbyQueues(latitude?: number, longitude?: number) {
       `)
       .in('status', ['open', 'active'])
       .eq('is_public', true)
+      .eq('approval_status', 'approved') // CRITICAL: Only show approved sessions
       .order('start_time', { ascending: true })
       .limit(20)
 
