@@ -1,10 +1,108 @@
 # Rallio Task Tracker
 
+**Last Updated:** December 1, 2025  
+**Current Branch:** feature/global-admin-dashboard  
+**Build Status:** ✅ PASSING (Zero TypeScript errors)
+
+## Quick Overview
+
+| Phase | Status | Completion | Key Notes |
+|-------|--------|------------|-----------|
+| Phase 1: Auth & Foundation | ✅ Complete | 100% | Email/password + Google OAuth, profile system |
+| Phase 2: Court Discovery | ✅ Mostly Done | 85% | Leaflet maps, PostGIS search, filters |
+| Phase 3: Bookings & Payments | ✅ Mostly Done | 85% | PayMongo (GCash/Maya), webhooks working |
+| Phase 4: Queue Management | ✅ Mostly Done | 85% | User & Queue Master features complete |
+| Phase 5: Ratings & Reviews | ⏳ Not Started | 0% | Planned for future |
+| Phase 6: Admin Dashboards | 🚧 In Progress | 70% | Court Admin 90%, Queue Master 90%, Global Admin 80% |
+| Phase 7: Notifications | 🚧 Partial | 50% | In-app done, push/email pending |
+
 ## How to Use This File
 - [x] Completed tasks
 - [ ] Pending tasks
 - Tasks are organized by phase and category
 - Update this file as you complete tasks
+
+---
+
+## Current System Capabilities
+
+### 🎾 For Players (Web App)
+**What's Built:**
+- ✅ Sign up with email/password or Google OAuth
+- ✅ Complete profile with avatar, skill level (1-10), play style
+- ✅ Browse courts on interactive Leaflet map
+- ✅ Filter courts by distance, price, amenities, court type
+- ✅ View court details with photos, pricing, amenities
+- ✅ Book time slots with calendar date picker
+- ✅ Pay via GCash or Maya (QR code checkout)
+- ✅ View booking history and manage reservations
+- ✅ Join queue sessions at courts
+- ✅ See real-time position in queue
+- ✅ Pay per game after playing in queue
+- ✅ Leave queue (with payment enforcement if games played)
+
+**What's Missing:**
+- ⚠️ Rate and review courts/players (Phase 5)
+- ⚠️ Email notifications for bookings
+- ⚠️ Modify/reschedule bookings
+- ⚠️ Split payment with friends
+- ⚠️ Mobile app
+
+### 🏟️ For Court Admins
+**What's Built:**
+- ✅ Dashboard with revenue stats and booking metrics
+- ✅ Multi-venue support (VenueSelector for multiple venues)
+- ✅ View and manage reservations (approve/reject/cancel)
+- ✅ Configure pricing (hourly rates, discounts, holiday pricing)
+- ✅ Set availability (operating hours, blocked dates)
+- ✅ Create and edit venues/courts
+- ✅ Approve/reject Queue Master session requests
+- ✅ Real-time in-app notifications with badge
+- ✅ View and respond to reviews
+- ✅ Analytics dashboard (revenue, bookings, peak hours)
+
+**What's Missing:**
+- ⚠️ Email notifications for new bookings
+- ⚠️ Refund processing UI
+- ⚠️ Complete promo code system
+- ⚠️ Court photo management
+- ⚠️ Staff management
+
+### 👥 For Queue Masters
+**What's Built:**
+- ✅ Create queue sessions (format, cost, max players)
+- ✅ Manage sessions (pause/resume/close)
+- ✅ View session dashboard with metrics
+- ✅ Assign players from queue to matches (auto-balanced teams)
+- ✅ Record match scores with auto-winner detection
+- ✅ Track player payments and games played
+- ✅ Waive fees for players
+- ✅ Analytics dashboard (revenue, top players, charts)
+- ✅ Real-time updates via Supabase subscriptions
+- ✅ Requires Court Admin approval to start sessions
+
+**What's Missing:**
+- ⚠️ PayMongo QR generation for queue payments
+- ⚠️ Session summary reports
+- ⚠️ Enhanced dispute resolution UI
+- ⚠️ Player notifications when matches assigned
+
+### 🌐 For Global Admins
+**What's Built:**
+- ✅ Platform overview dashboard (users, revenue, bookings)
+- ✅ User management (CRUD, roles, ban/suspend)
+- ✅ Venue management (CRUD, verification)
+- ✅ Content moderation (flagged reviews, batch operations)
+- ✅ Platform settings (fees, terms, policies)
+- ✅ Audit logs (track all admin actions)
+- ✅ Analytics dashboard (user growth, booking trends)
+- ✅ Amenity management (platform-wide)
+
+**What's Missing:**
+- ⚠️ Venue approval workflow (auto-approved for now)
+- ⚠️ Dispute escalation system
+- ⚠️ Financial reconciliation tools
+- ⚠️ Advanced system health monitoring
 
 ---
 
@@ -314,7 +412,7 @@
 
 ---
 
-## Phase 4: Queue Management - 🚧 70% Complete
+## Phase 4: Queue Management - ✅ 85% Complete
 
 ### Backend Infrastructure ✅ 100% Complete (2025-11-26)
 - [x] Create queue-actions.ts with server actions (getQueueDetails, joinQueue, leaveQueue, getMyQueues, getNearbyQueues, calculateQueuePayment)
@@ -328,15 +426,21 @@
 - [x] Games played counter and stats tracking
 - [x] Payment enforcement before leaving queue
 
-### Queue Session (Queue Master) - 🚧 40% Complete
+### Queue Session (Queue Master) - ✅ 90% Complete
 - [x] Track games per player (backend complete)
 - [x] Create game assignment interface (backend logic complete)
-- [ ] Create queue session creation form (UI pending)
-- [ ] Implement queue parameter settings (UI pending)
-- [ ] Create queue dashboard UI (UI pending)
-- [ ] Display pending players list (UI exists, backend connected)
-- [ ] Implement player approval/rejection (future feature)
-- [ ] Implement session closure flow (future feature)
+- [x] Create queue session creation form (UI complete at `/queue-master/create`)
+- [x] Implement queue parameter settings (UI complete)
+- [x] Create queue dashboard UI (UI complete with metrics)
+- [x] Display pending players list (UI exists, backend connected)
+- [x] Session management (pause/resume/close)
+- [x] Match assignment modal with team balancing
+- [x] Score recording modal with auto-winner detection
+- [x] Payment tracking and waive fee functionality
+- [x] Analytics dashboard with charts
+- [x] Real-time updates via Supabase subscriptions
+- [ ] PayMongo QR generation for queue payments (placeholder exists)
+- [ ] Enhanced dispute resolution UI (future feature)
 - [ ] Generate session summary report (future feature)
 
 ### Queue Participation (Player) - ✅ 85% Complete
@@ -403,9 +507,9 @@
 
 ---
 
-## Phase 6: Admin Dashboards - 60% COMPLETE 🚧
+## Phase 6: Admin Dashboards - 70% COMPLETE 🚧
 
-### Court Admin Dashboard ✅ MOSTLY COMPLETE (Dec 2025)
+### Court Admin Dashboard ✅ 90% COMPLETE (Dec 2025)
 - [x] Create dashboard layout
   - ✅ Court Admin sidebar with navigation
   - ✅ Header with notification bell
@@ -465,20 +569,90 @@
 - [x] Build early bird discount settings
 - [ ] Implement promo code management (partial - needs completion)
 
-### Queue Master Dashboard 🚧 40% COMPLETE
-- [x] Create session management view (basic)
-- [x] Build player management interface (basic)
-- [ ] Implement dispute resolution UI
-- [ ] Create game history viewer (exists but needs improvements)
-- [ ] Build session analytics
+### Queue Master Dashboard ✅ 90% COMPLETE (Nov 2025)
+- [x] Create session management view (complete with filters)
+- [x] Build player management interface (complete)
+- [x] Session creation form (complete)
+- [x] Session details page with real-time updates
+- [x] Match assignment interface with visual selection
+- [x] Score recording modal
+- [x] Payment tracking and waive fee functionality
+- [x] Analytics dashboard with charts (revenue, top players, distribution)
+- [x] Real-time Supabase subscriptions
+- [ ] PayMongo QR generation for payments
+- [ ] Enhanced dispute resolution UI
+- [ ] Session summary reports
 
-### Global Admin Dashboard ⏳ PENDING
-- [ ] Create platform overview dashboard
-- [ ] Build user management interface
-- [ ] Implement venue approval flow
-- [ ] Create dispute escalation handling
-- [ ] Build platform analytics
-- [ ] Implement system configuration UI
+### Global Admin Dashboard ✅ 80% COMPLETE (Dec 2025)
+- [x] Create platform overview dashboard
+  - ✅ User stats (total, active, new this month)
+  - ✅ Revenue metrics (total, this month, growth)
+  - ✅ Booking trends (total, pending, confirmed)
+  - ✅ System health indicators
+  - ✅ Recent activity feed
+- [x] Build user management interface
+  - ✅ User list with search and filtering
+  - ✅ User detail modal (roles, activity, stats)
+  - ✅ Assign/remove user roles
+  - ✅ Ban/suspend/deactivate users
+  - ✅ Create users manually
+  - ✅ Update user profiles and player data
+  - ✅ Verify/unverify players
+  - ✅ Reset user passwords
+  - ✅ Reactivate deactivated users
+- [x] Build venue management interface
+  - ✅ Venue list with filtering and search
+  - ✅ Venue details panel
+  - ✅ Create/update/delete venues
+  - ✅ Court management (create/update/delete)
+  - ✅ Toggle venue/court verification
+  - ✅ Toggle venue/court active status
+  - ✅ Bulk venue updates
+  - ✅ Amenity management (platform-wide CRUD)
+- [x] Implement content moderation
+  - ✅ Flagged reviews dashboard
+  - ✅ Moderation statistics
+  - ✅ Resolve flagged content (approve/remove)
+  - ✅ Ban user from posting reviews
+  - ✅ Batch delete reviews
+  - ✅ Banned users list with unban
+  - ✅ Recent moderation activity log
+- [x] Build platform settings
+  - ✅ Platform fee configuration (percentage, enabled/disabled)
+  - ✅ Terms & conditions editor (rich text)
+  - ✅ Refund policy editor (rich text)
+  - ✅ General settings (maintenance mode, site name, contact)
+  - ✅ Notification settings (email/sms/push toggles)
+  - ✅ Payment settings (min/max amounts, methods)
+  - ✅ Calculate platform fee helper
+- [x] Implement audit logs
+  - ✅ Complete admin action tracking (automatic)
+  - ✅ Filter by admin, action type, target type, date range
+  - ✅ Export to CSV functionality
+  - ✅ Action type list
+  - ✅ Target type list
+  - ✅ Admin list
+  - ✅ Audit statistics
+- [x] Build analytics dashboard
+  - ✅ Analytics summary (users, bookings, revenue, queues)
+  - ✅ User growth chart (30 days)
+  - ✅ Recent activity log
+  - ✅ Top venues by bookings
+  - ✅ Revenue trends
+- [ ] Implement venue approval flow (future feature)
+- [ ] Create dispute escalation handling (future feature)
+- [ ] Financial reconciliation tools
+- [ ] Advanced system health monitoring
+- [ ] API rate limiting dashboard
+
+### Database Migrations (Global Admin)
+- [x] Migration 018: Assign user roles helper ✅
+- [x] Migration 019: Global admin elevation policies ✅
+- [x] Migration 020: Fix is_active default ✅
+- [x] Migration 021: Global admin venue/court insert/delete policies ✅
+- [x] Migration 022: Court verification system ✅
+- [x] Migration 023: Metadata for moderation ✅
+- [x] Migration 024: Platform settings table ✅
 
 ### Database Migrations (Court Admin)
 - [x] Migration 012: Queue session approval workflow ✅
@@ -488,7 +662,7 @@
 
 ---
 
-## Phase 7: Notifications - 40% COMPLETE 🚧
+## Phase 7: Notifications - 50% COMPLETE 🚧
 
 ### In-App Notifications ✅ COMPLETE (Dec 1, 2025)
 - [x] Create notification types and interfaces (`/types/notifications.ts`)
