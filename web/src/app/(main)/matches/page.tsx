@@ -32,6 +32,14 @@ export default async function MatchesPage({
 
   const stats = statsResult.stats
   const matches = matchesResult.matches
+  
+  // Log errors for debugging
+  if (statsResult.error) {
+    console.error('[MatchesPage] Stats error:', statsResult.error)
+  }
+  if (matchesResult.error) {
+    console.error('[MatchesPage] Matches error:', matchesResult.error)
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

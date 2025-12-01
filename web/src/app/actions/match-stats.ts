@@ -23,7 +23,7 @@ export interface MatchWithDetails {
       venue: {
         name: string
       }
-    }
+    } | null
   } | null
   // Computed fields
   userTeam: 'team_a' | 'team_b' | null
@@ -52,6 +52,8 @@ export async function getPlayerMatchHistory(
   const supabase = await createClient()
 
   try {
+    console.log('[getPlayerMatchHistory] Fetching matches for user:', userId)
+    
     // Get all completed matches first
     const { data: allMatches, error: fetchError } = await supabase
       .from('matches')
@@ -67,25 +69,18 @@ export async function getPlayerMatchHistory(
         status,
         started_at,
         completed_at,
-        queue_session:queue_sessions(
-          id,
-          session_date,
-          court:courts(
-            id,
-            name,
-            venue:venues(
-              name
-            )
-          )
-        )
+        queue_session_id,
+        court_id
       `)
       .eq('status', 'completed')
-      .order('completed_at', { ascending: false })
+      .order('completed_at', { ascending: false, nullsFirst: false })
 
     if (fetchError) {
-      console.error('Error fetching matches:', fetchError)
-      return { matches: [], error: fetchError.message }
+      console.error('[getPlayerMatchHistory] Error fetching matches:', fetchError)
+      return { matches: [], error: fetchError.message || String(fetchError) }
     }
+
+    console.log('[getPlayerMatchHistory] Fetched matches count:', allMatches?.length || 0)
 
     // Filter matches where user is in either team (client-side filtering)
     const matches = allMatches?.filter((match: any) => {
@@ -94,9 +89,42 @@ export async function getPlayerMatchHistory(
       return inTeamA || inTeamB
     }) || []
 
+    console.log('[getPlayerMatchHistory] Filtered matches for user:', matches.length)
+
     if (!matches || matches.length === 0) {
       return { matches: [] }
     }
+
+    // Get queue session and court details for matches that have them
+    const queueSessionIds = matches
+      .map((m: any) => m.queue_session_id)
+      .filter((id: any) => id != null)
+    
+    const courtIds = matches
+      .map((m: any) => m.court_id)
+      .filter((id: any) => id != null)
+
+    const [queueSessionsData, courtsData] = await Promise.all([
+      queueSessionIds.length > 0
+        ? supabase
+            .from('queue_sessions')
+            .select('id, session_date, court_id')
+            .in('id', queueSessionIds)
+        : Promise.resolve({ data: [] }),
+      courtIds.length > 0
+        ? supabase
+            .from('courts')
+            .select('id, name, venue:venues(name)')
+            .in('id', courtIds)
+        : Promise.resolve({ data: [] }),
+    ])
+
+    const queueSessionMap = new Map(
+      queueSessionsData.data?.map((qs: any) => [qs.id, qs]) || []
+    )
+    const courtMap = new Map(
+      courtsData.data?.map((c: any) => [c.id, c]) || []
+    )
 
     // Get all unique player IDs from all matches
     const allPlayerIds = new Set<string>()
@@ -141,6 +169,25 @@ export async function getPlayerMatchHistory(
         const teammateNames = teammates.map((id: string) => profileMap.get(id) || 'Unknown Player')
         const opponentNames = opponents.map((id: string) => profileMap.get(id) || 'Unknown Player')
 
+        // Build queue session data from separate queries
+        const queueSession = match.queue_session_id ? queueSessionMap.get(match.queue_session_id) : null
+        const court = match.court_id ? courtMap.get(match.court_id) : null
+        const queueSessionCourt = queueSession?.court_id ? courtMap.get(queueSession.court_id) : null
+
+        const queueSessionData = queueSession ? {
+          id: queueSession.id,
+          sessionDate: queueSession.session_date,
+          court: queueSessionCourt ? {
+            id: queueSessionCourt.id,
+            name: queueSessionCourt.name,
+            venue: queueSessionCourt.venue
+          } : (court ? {
+            id: court.id,
+            name: court.name,
+            venue: court.venue
+          } : null)
+        } : null
+
         return {
           id: match.id,
           matchNumber: match.match_number,
@@ -153,7 +200,7 @@ export async function getPlayerMatchHistory(
           status: match.status,
           startedAt: match.started_at,
           completedAt: match.completed_at,
-          queueSession: match.queue_session,
+          queueSession: queueSessionData,
           userTeam,
           userWon,
           opponentNames,
