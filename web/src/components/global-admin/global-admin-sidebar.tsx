@@ -7,28 +7,25 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
-  Calendar,
+  Users,
   Building2,
-  DollarSign,
   BarChart3,
-  Star,
+  ShieldAlert,
   Settings,
+  FileText,
   LogOut,
-  User,
-  ArrowLeft,
-  Clock
+  ArrowLeft
 } from 'lucide-react'
 
-interface CourtAdminSidebarProps {
+interface GlobalAdminSidebarProps {
   user: {
     email: string
     avatarUrl?: string
     displayName?: string
   }
-  venues: Array<{ id: string; name: string }>
 }
 
-export function CourtAdminSidebar({ user, venues }: CourtAdminSidebarProps) {
+export default function GlobalAdminSidebar({ user }: GlobalAdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [isExpanded, setIsExpanded] = useState(false)
@@ -41,32 +38,33 @@ export function CourtAdminSidebar({ user, venues }: CourtAdminSidebarProps) {
   }
 
   const navItems = [
-    { href: '/court-admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-    { href: '/court-admin/reservations', label: 'Reservations', icon: Calendar },
-    { href: '/court-admin/venues', label: 'My Venues', icon: Building2 },
-    { href: '/court-admin/pending-courts', label: 'Pending Courts', icon: Clock },
-    { href: '/court-admin/analytics', label: 'Analytics', icon: BarChart3 },
-    { href: '/court-admin/reviews', label: 'Reviews', icon: Star },
+    { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/venues', label: 'Venues', icon: Building2 },
+    { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+    { href: '/admin/moderation', label: 'Moderation', icon: ShieldAlert },
+    { href: '/admin/settings', label: 'Settings', icon: Settings },
+    { href: '/admin/audit', label: 'Audit Logs', icon: FileText },
   ]
 
   return (
     <>
       {/* Desktop Sidebar */}
       <aside
-        className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:w-20 bg-gradient-to-b from-blue-600 to-blue-700 border-r border-blue-800 z-40"
+        className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:w-20 bg-gradient-to-b from-purple-600 to-purple-700 border-r border-purple-800 z-40"
         onMouseEnter={() => setIsExpanded(true)}
         onMouseLeave={() => setIsExpanded(false)}
       >
         {/* Expanded overlay */}
         <div
           className={cn(
-            "absolute inset-y-0 left-0 bg-gradient-to-b from-blue-600 to-blue-700 border-r border-blue-800 shadow-2xl transition-all duration-300 flex flex-col",
+            "absolute inset-y-0 left-0 bg-gradient-to-b from-purple-600 to-purple-700 border-r border-purple-800 shadow-2xl transition-all duration-300 flex flex-col",
             isExpanded ? "w-64" : "w-20"
           )}
         >
           {/* Logo */}
           <div className="px-4 py-6 flex justify-center">
-            <Link href="/court-admin" className="flex items-center gap-2">
+            <Link href="/admin" className="flex items-center gap-2">
               <img
                 src="/logo.svg"
                 alt="Rallio"
@@ -81,7 +79,7 @@ export function CourtAdminSidebar({ user, venues }: CourtAdminSidebarProps) {
           </div>
 
           {/* Nav Links */}
-          <nav className="flex-1 px-3 space-y-1">
+          <nav className="flex-1 px-3 space-y-1 mt-4">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = item.exact
@@ -155,7 +153,7 @@ export function CourtAdminSidebar({ user, venues }: CourtAdminSidebarProps) {
       </aside>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-blue-700 border-t border-blue-800 z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-gradient-to-r from-purple-600 to-purple-700 border-t border-purple-800 z-50">
         <div className="flex items-center justify-around h-16 px-2">
           {navItems.slice(0, 5).map((item) => {
             const Icon = item.icon
