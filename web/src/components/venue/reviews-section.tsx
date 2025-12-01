@@ -132,15 +132,9 @@ export function ReviewsSection({ courtIds, venueName, firstCourtName }: ReviewsS
     setFilteredReviews(filtered)
     setDisplayCount(5) // Reset display count when filters change
   }, [reviews, filterRating, sortBy])
-    }
-
-    if (courtIds.length > 0) {
-      fetchReviews()
-    }
-  }, [courtIds])
 
   const renderStars = (rating: number, size: 'sm' | 'md' = 'md') => {
-    const stars = []
+    const stars: JSX.Element[] = []
     const fullStars = Math.floor(rating)
     const hasHalfStar = rating % 1 >= 0.5
     const sizeClass = size === 'sm' ? 'w-3 h-3' : 'w-4 h-4'
