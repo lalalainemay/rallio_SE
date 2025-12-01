@@ -335,46 +335,12 @@ export function ReviewsSection({ courtIds, venueName, firstCourtName }: ReviewsS
                 key={rating}
                 onClick={() => setFilterRating(filterRating === rating ? 'all' : (rating as FilterOption))}
                 className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-          </div>
-          ))
-        )}
-      </div>
-
-      {/* Load More Button */}
-      {hasMore && (
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => setDisplayCount((prev) => prev + 5)}
-            className="px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Load More Reviews ({filteredReviews.length - displayCount} remaining)
-          </button>
-        </div>
-      )}
-
-      {/* Review Modal */}
-      <ReviewModal
-        courtId={courtIds[0] || ''}
-        courtName={firstCourtName || 'Court'}
-        venueName={venueName}
-        isOpen={showReviewModal}
-        onClose={() => setShowReviewModal(false)}
-        onSuccess={() => {
-          // Refresh reviews after successful submission
-          const fetchReviews = async () => {
-            const allReviews: Review[] = []
-            for (const courtId of courtIds) {
-              const courtReviews = await getCourtRatings(courtId)
-              allReviews.push(...courtReviews)
-            }
-            setReviews(allReviews)
-          }
-          fetchReviews()
-        }}
-      />
-    </div>
-  )
-}               {rating}★ ({count})
+                  filterRating === rating
+                    ? 'bg-primary text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {rating}★ ({count})
               </button>
             )
           })}
@@ -473,6 +439,39 @@ export function ReviewsSection({ courtIds, venueName, firstCourtName }: ReviewsS
           </div>
         ))}
       </div>
+
+      {/* Load More Button */}
+      {hasMore && (
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => setDisplayCount((prev) => prev + 5)}
+            className="px-6 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Load More Reviews ({filteredReviews.length - displayCount} remaining)
+          </button>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      <ReviewModal
+        courtId={courtIds[0] || ''}
+        courtName={firstCourtName || 'Court'}
+        venueName={venueName}
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        onSuccess={() => {
+          // Refresh reviews after successful submission
+          const fetchReviews = async () => {
+            const allReviews: Review[] = []
+            for (const courtId of courtIds) {
+              const courtReviews = await getCourtRatings(courtId)
+              allReviews.push(...courtReviews)
+            }
+            setReviews(allReviews)
+          }
+          fetchReviews()
+        }}
+      />
     </div>
   )
 }
