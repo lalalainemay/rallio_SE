@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { logAdminAction } from './admin-audit-actions'
+import { logAdminAction } from './global-admin-actions'
 
 /**
  * Verify user is a global admin
@@ -195,13 +195,12 @@ export async function resolveFlaggedReview(
 
       if (error) throw error
 
-      await logAdminAction(
-        user.id,
-        'CONTENT_MODERATION',
-        'court_ratings',
-        reviewId,
-        { action: 'dismiss_flag', notes }
-      )
+      await logAdminAction({
+        actionType: 'CONTENT_MODERATION',
+        targetType: 'court_ratings',
+        targetId: reviewId,
+        newValue: { action: 'dismiss_flag', notes }
+      })
     } else if (action === 'delete') {
       // Delete the review
       const { error } = await supabase
@@ -211,13 +210,12 @@ export async function resolveFlaggedReview(
 
       if (error) throw error
 
-      await logAdminAction(
-        user.id,
-        'REVIEW_DELETE',
-        'court_ratings',
-        reviewId,
-        { reason: notes || 'Violated content policy' }
-      )
+      await logAdminAction({
+        actionType: 'REVIEW_DELETE',
+        targetType: 'court_ratings',
+        targetId: reviewId,
+        newValue: { reason: notes || 'Violated content policy' }
+      })
     } else if (action === 'ban_user') {
       // Ban the user who created the review
       const { error: banError } = await supabase
@@ -246,13 +244,12 @@ export async function resolveFlaggedReview(
         .update({ metadata })
         .eq('id', reviewId)
 
-      await logAdminAction(
-        user.id,
-        'USER_BAN',
-        'profiles',
-        (review.user as any).id,
-        { reason: notes, related_review: reviewId }
-      )
+      await logAdminAction({
+        actionType: 'USER_BAN',
+        targetType: 'profiles',
+        targetId: (review.user as any).id,
+        newValue: { reason: notes, related_review: reviewId }
+      })
     }
 
     revalidatePath('/admin/moderation')
@@ -307,13 +304,12 @@ export async function unbanUser(userId: string, notes?: string) {
 
     if (error) throw error
 
-    await logAdminAction(
-      user.id,
-      'USER_UNBAN',
-      'profiles',
-      userId,
-      { notes }
-    )
+    await logAdminAction({
+      actionType: 'USER_UNBAN',
+      targetType: 'profiles',
+      targetId: userId,
+      newValue: { notes }
+    })
 
     revalidatePath('/admin/moderation')
     revalidatePath('/admin/users')
@@ -371,13 +367,12 @@ export async function batchDeleteReviews(reviewIds: string[], reason: string) {
 
     // Log each deletion
     for (const reviewId of reviewIds) {
-      await logAdminAction(
-        user.id,
-        'REVIEW_DELETE',
-        'court_ratings',
-        reviewId,
-        { reason, batch: true }
-      )
+      await logAdminAction({
+        actionType: 'REVIEW_DELETE',
+        targetType: 'court_ratings',
+        targetId: reviewId,
+        newValue: { reason, batch: true }
+      })
     }
 
     revalidatePath('/admin/moderation')
