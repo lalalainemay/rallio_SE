@@ -1,15 +1,11 @@
 import { Metadata } from 'next'
+import PlatformSettingsDashboard from '@/components/global-admin/platform-settings-dashboard'
 
 export const metadata: Metadata = {
   title: 'Settings | Admin',
-  description: 'Platform settings and configuration',
+  description: 'Platform settings',
 }
 
 export default function SettingsPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Platform Settings</h1>
-      <p className="text-gray-600">Coming soon...</p>
-    </div>
-  )
+  return <PlatformSettingsDashboard />
 }
