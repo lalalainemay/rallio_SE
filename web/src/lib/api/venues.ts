@@ -10,6 +10,7 @@ export interface VenueFilters {
   minPrice?: number
   maxPrice?: number
   amenities?: string[]
+  category?: string
   courtType?: 'indoor' | 'outdoor' | null
   minRating?: number
   latitude?: number
@@ -129,6 +130,7 @@ export async function getVenues(filters: VenueFilters = {}): Promise<{
     minPrice = 0,
     maxPrice = 10000,
     amenities = [],
+    category,
     courtType,
     minRating = 0,
     latitude,
@@ -199,7 +201,31 @@ export async function getVenues(filters: VenueFilters = {}): Promise<{
     if (error) throw error
     if (!rawVenues) return { venues: [], total: 0, hasMore: false }
 
-    // Process and filter venues
+    // Fetch court ratings for all courts included in the result so we can compute
+    // a per-venue average rating. We fetch raw ratings and aggregate in JS.
+    const courtIds: string[] = rawVenues.flatMap((v: any) => (v.courts || []).map((c: any) => c.id)).filter(Boolean)
+    let courtRatings: Array<{ court_id: string; overall_rating: number }> = []
+    if (courtIds.length > 0) {
+      const { data: ratingsData } = await supabase
+        .from('court_ratings')
+        .select('court_id, overall_rating')
+        .in('court_id', courtIds)
+
+      courtRatings = ratingsData || []
+    }
+
+    // Aggregate ratings per court
+    const courtAggregates: Record<string, { sum: number; count: number; avg: number }> = {}
+    for (const r of courtRatings) {
+      if (!courtAggregates[r.court_id]) courtAggregates[r.court_id] = { sum: 0, count: 0, avg: 0 }
+      courtAggregates[r.court_id].sum += Number(r.overall_rating || 0)
+      courtAggregates[r.court_id].count += 1
+    }
+    for (const k of Object.keys(courtAggregates)) {
+      courtAggregates[k].avg = courtAggregates[k].count > 0 ? courtAggregates[k].sum / courtAggregates[k].count : 0
+    }
+
+    // Process and filter venues (attach computed average ratings)
     let processedVenues: VenueWithDetails[] = rawVenues.map((venue: any) => {
       const activeCourts = venue.courts.filter((c: any) => c.is_active)
       
@@ -218,6 +244,18 @@ export async function getVenues(filters: VenueFilters = {}): Promise<{
         })
       })
 
+      // Compute per-venue average rating using courtAggregates
+      let venueSum = 0
+      let venueCount = 0
+      activeCourts.forEach((court: any) => {
+        const agg = courtAggregates[court.id]
+        if (agg && agg.count > 0) {
+          venueSum += agg.sum
+          venueCount += agg.count
+        }
+      })
+      const venueAvg = venueCount > 0 ? venueSum / venueCount : undefined
+
       return {
         ...venue,
         courts: activeCourts.map((court: any) => ({
@@ -231,11 +269,21 @@ export async function getVenues(filters: VenueFilters = {}): Promise<{
         totalCourts: activeCourts.length,
         activeCourtCount: activeCourts.length,
         amenities: Array.from(uniqueAmenities),
+        averageRating: venueAvg,
+        totalReviews: venueCount,
       }
     })
 
     // Apply client-side filters
     processedVenues = processedVenues.filter(venue => {
+      // Category filter (if provided)
+      if (category) {
+        const cat = String(category).toLowerCase()
+        const inMeta = venue.metadata && String(venue.metadata.category || '').toLowerCase() === cat
+        const inName = String(venue.name || '').toLowerCase().includes(cat)
+        const inDesc = String(venue.description || '').toLowerCase().includes(cat)
+        if (!inMeta && !inName && !inDesc) return false
+      }
       // Price filter
       if (venue.minPrice > maxPrice || venue.maxPrice < minPrice) return false
       
