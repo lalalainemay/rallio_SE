@@ -65,7 +65,7 @@ We reserve the right to modify these terms at any time.',
 ## Cancellation Timeframes
 
 ### Full Refund (100%)
-- Cancellations made 24 hours or more before booking time
+- Cancellations made 24 hours or more before bookingx time
 - Platform fee is refunded
 
 ### Partial Refund (50%)

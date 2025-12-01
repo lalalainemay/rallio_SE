@@ -55,6 +55,10 @@ interface CheckoutState {
     isIncrease: boolean
   }>
 
+  // Platform fee
+  platformFeePercentage: number
+  platformFeeEnabled: boolean
+
   // Confirmation
   bookingReference?: string
   reservationId?: string
@@ -69,11 +73,13 @@ interface CheckoutState {
   updatePlayerPayment: (playerNumber: number, updates: Partial<PlayerPaymentStatus>) => void
   setDiscount: (amount: number, code?: string) => void
   setDiscountDetails: (details: { amount: number; type?: string; reason?: string; discounts?: any[] }) => void
+  setPlatformFee: (percentage: number, enabled: boolean) => void
   setBookingReference: (reference: string, reservationId: string) => void
   resetCheckout: () => void
 
   // Computed values
   getSubtotal: () => number
+  getPlatformFeeAmount: () => number
   getTotalAmount: () => number
   getPerPlayerAmount: () => number
   getAllPlayersPaid: () => boolean
@@ -89,6 +95,8 @@ const initialState = {
   policyAccepted: false,
   discountAmount: 0,
   discountCode: undefined,
+  platformFeePercentage: 5, // Default 5%
+  platformFeeEnabled: true,
   bookingReference: undefined,
   reservationId: undefined,
 }
@@ -180,6 +188,11 @@ export const useCheckoutStore = create<CheckoutState>()(
         applicableDiscounts: details.discounts
       }),
 
+      setPlatformFee: (percentage, enabled) => set({
+        platformFeePercentage: percentage,
+        platformFeeEnabled: enabled
+      }),
+
       setBookingReference: (reference, reservationId) =>
         set({ bookingReference: reference, reservationId }),
 
@@ -188,13 +201,23 @@ export const useCheckoutStore = create<CheckoutState>()(
       // Computed values
       getSubtotal: () => {
         const state = get()
-        return state.bookingData?.hourlyRate || 0
+        const baseRate = state.bookingData?.hourlyRate || 0
+        // Apply discount to subtotal
+        return Math.max(0, baseRate - state.discountAmount)
+      },
+
+      getPlatformFeeAmount: () => {
+        const state = get()
+        if (!state.platformFeeEnabled) return 0
+        const subtotal = state.getSubtotal()
+        return Math.round((subtotal * (state.platformFeePercentage / 100)) * 100) / 100
       },
 
       getTotalAmount: () => {
         const state = get()
         const subtotal = state.getSubtotal()
-        return Math.max(0, subtotal - state.discountAmount)
+        const platformFee = state.getPlatformFeeAmount()
+        return Math.round((subtotal + platformFee) * 100) / 100
       },
 
       getPerPlayerAmount: () => {

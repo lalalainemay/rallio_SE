@@ -2,6 +2,7 @@ import { getVenueById } from '@/lib/api/venues'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { BookingForm } from '@/components/booking/booking-form'
+import { PlatformFeeLoader } from '@/components/checkout/platform-fee-loader'
 
 export async function generateMetadata({ params, searchParams }: {
   params: Promise<{ id: string }>
@@ -73,6 +74,9 @@ export default async function BookingPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Load platform fee settings */}
+      <PlatformFeeLoader />
+      
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
