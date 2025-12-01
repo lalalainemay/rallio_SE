@@ -74,6 +74,14 @@ export function BookingForm({ venue, courts, selectedCourtId, userId }: BookingF
   // Calculate total price
   const totalPrice = selectedCourt ? selectedCourt.hourlyRate * duration : 0
 
+  // Format time for display
+  const formatTime = (time: string): string => {
+    const [hours, minutes] = time.split(':').map(Number)
+    const period = hours >= 12 ? 'PM' : 'AM'
+    const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`
+  }
+
   // Calculate end time based on start time and duration
   const getEndTime = (startTime: string, durationHours: number): string => {
     const [hours, minutes] = startTime.split(':').map(Number)
@@ -189,10 +197,39 @@ export function BookingForm({ venue, courts, selectedCourtId, userId }: BookingF
           </div>
         </div>
 
+        {/* Duration Selection - MOVED BEFORE TIME SELECTION */}
+        {selectedDate && (
+          <div className="mb-6">
+            <Label htmlFor="duration" className="block mb-2">
+              Duration (hours)
+            </Label>
+            <Select
+              id="duration"
+              value={duration.toString()}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                setDuration(parseInt(e.target.value))
+                setSelectedTime(undefined) // Reset time selection when duration changes
+              }}
+              required
+            >
+              {[1, 2, 3, 4, 5, 6].map((hours) => (
+                <option key={hours} value={hours}>
+                  {hours} {hours === 1 ? 'hour' : 'hours'}
+                </option>
+              ))}
+            </Select>
+            <p className="text-sm text-gray-600 mt-2">
+              Select how many hours you need the court
+            </p>
+          </div>
+        )}
+
         {/* Time Selection */}
         {selectedDate && (
           <div className="mb-6">
-            <Label className="block mb-3">Select Start Time</Label>
+            <Label className="block mb-3">
+              Select Start Time {duration > 1 && <span className="text-primary">({duration}-hour booking)</span>}
+            </Label>
             {isLoadingSlots ? (
               <div className="flex items-center justify-center py-8">
                 <Spinner size="lg" />
@@ -202,43 +239,14 @@ export function BookingForm({ venue, courts, selectedCourtId, userId }: BookingF
               <TimeSlotGrid
                 slots={timeSlots}
                 selectedTime={selectedTime}
+                duration={duration}
                 onSelectTime={setSelectedTime}
               />
             )}
           </div>
         )}
 
-        {/* Duration Selection */}
-        {selectedTime && (
-          <div className="mb-6">
-            <Label htmlFor="duration" className="block mb-2">
-              Duration (hours)
-            </Label>
-            <Select
-              id="duration"
-              value={duration.toString()}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setDuration(parseInt(e.target.value))}
-              required
-            >
-              {[1, 2, 3, 4].map((hours) => (
-                <option key={hours} value={hours}>
-                  {hours} {hours === 1 ? 'hour' : 'hours'}
-                </option>
-              ))}
-            </Select>
-            {selectedTime && (
-              <p className="text-sm text-gray-600 mt-2">
-                Booking from {formatTime(selectedTime)} to {formatTime(getEndTime(selectedTime, duration))}
-              </p>
-            )}
-            {selectedTime && !isDurationAvailable() && (
-              <p className="text-sm text-red-600 mt-2">
-                ⚠️ The selected {duration}-hour time slot is not fully available. Please choose a different time or duration.
-              </p>
-            )}
-          </div>
-        )}
-
+        {/* Duration moved above - removed from here */}
         {/* Number of Players */}
         {selectedDate && selectedTime && selectedCourt && (
           <div className="mb-6">
@@ -299,6 +307,29 @@ export function BookingForm({ venue, courts, selectedCourtId, userId }: BookingF
 
       {/* Price Summary & Submit */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
+        {/* Selected Time Range Display */}
+        {selectedDate && selectedTime && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-blue-900 mb-1">Selected Time</p>
+                <p className="text-lg font-bold text-blue-700">
+                  {formatTime(selectedTime)} - {formatTime(getEndTime(selectedTime, duration))}
+                </p>
+                <p className="text-sm text-blue-600 mt-1">
+                  {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </p>
+                <p className="text-sm text-blue-600">
+                  Duration: {duration} {duration === 1 ? 'hour' : 'hours'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-2 mb-4">
           <div className="flex justify-between items-center text-gray-600">
             <span>Base Price</span>

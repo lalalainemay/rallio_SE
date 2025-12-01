@@ -11,6 +11,7 @@ export interface TimeSlot {
 interface TimeSlotGridProps {
   slots: TimeSlot[]
   selectedTime?: string
+  duration?: number // Add duration prop to show time ranges
   onSelectTime: (time: string) => void
   className?: string
 }
@@ -18,6 +19,7 @@ interface TimeSlotGridProps {
 export function TimeSlotGrid({
   slots,
   selectedTime,
+  duration = 1, // Default to 1 hour
   onSelectTime,
   className,
 }: TimeSlotGridProps) {
@@ -29,13 +31,48 @@ export function TimeSlotGrid({
     )
   }
 
+  // Helper to check if duration hours are available starting from a given slot
+  const isDurationAvailable = (startTime: string): boolean => {
+    const startHour = parseInt(startTime.split(':')[0])
+    
+    for (let i = 0; i < duration; i++) {
+      const hour = startHour + i
+      const timeString = `${hour.toString().padStart(2, '0')}:00`
+      const slot = slots.find((s) => s.time === timeString)
+      
+      if (!slot || !slot.available) {
+        return false
+      }
+    }
+    
+    return true
+  }
+
+  // Helper to calculate end time based on start time and duration
+  const getEndTime = (startTime: string): string => {
+    const [hours, minutes] = startTime.split(':').map(Number)
+    const endHours = hours + duration
+    return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+  }
+
+  // Filter slots to only show ones where full duration is available
+  const availableStartSlots = slots.filter(slot => isDurationAvailable(slot.time))
+
   // Count available and reserved slots for the legend
-  const availableCount = slots.filter(s => s.available).length
-  const reservedCount = slots.filter(s => !s.available).length
+  const availableCount = availableStartSlots.length
+  const reservedCount = slots.length - availableCount
 
   return (
     <div className={cn('space-y-3', className)}>
       {/* Legend */}
+      {duration > 1 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+          <p className="text-sm text-blue-900 font-medium">
+            📅 {duration}-hour booking: Times shown are start times. Your reservation will be from start time to {duration} hours later.
+          </p>
+        </div>
+      )}
+      
       {reservedCount > 0 && (
         <div className="flex items-center gap-4 text-xs text-gray-600 pb-2 border-b border-gray-200">
           <div className="flex items-center gap-1.5">
@@ -44,54 +81,57 @@ export function TimeSlotGrid({
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 rounded bg-gray-50 border border-gray-200"></div>
-            <span>Reserved ({reservedCount})</span>
+            <span>Not Available ({reservedCount})</span>
           </div>
         </div>
       )}
 
-      {/* Time Slot Grid */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-      {slots.map((slot) => {
-        const isSelected = selectedTime === slot.time
-        const isDisabled = !slot.available
+      {/* Show message if no slots available for selected duration */}
+      {availableStartSlots.length === 0 && (
+        <div className="text-center py-8 bg-amber-50 border border-amber-200 rounded-lg">
+          <svg className="w-12 h-12 text-amber-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-amber-900 font-medium mb-1">No {duration}-hour slots available</p>
+          <p className="text-sm text-amber-700">Try selecting a shorter duration or different date</p>
+        </div>
+      )}
 
-        return (
-          <button
-            key={slot.time}
-            type="button"
-            disabled={isDisabled}
-            onClick={() => !isDisabled && onSelectTime(slot.time)}
-            className={cn(
-              'px-4 py-3 rounded-lg border text-sm font-medium transition-all relative',
-              'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
-              isSelected && !isDisabled && 'bg-primary text-white border-primary shadow-md',
-              !isSelected && !isDisabled && 'bg-white text-gray-700 border-gray-300 hover:border-primary hover:bg-gray-50 hover:shadow-sm',
-              isDisabled && 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed relative',
-              isDisabled && 'after:absolute after:inset-0 after:bg-gray-100/50'
-            )}
-            aria-label={isDisabled ? `${formatTime(slot.time)} - Reserved` : `${formatTime(slot.time)} - Available`}
-            aria-disabled={isDisabled}
-          >
-            <div className="flex flex-col items-center gap-1 relative z-10">
-              {isDisabled && (
-                <svg className="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
+      {/* Time Slot Grid */}
+      {availableStartSlots.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {availableStartSlots.map((slot) => {
+          const isSelected = selectedTime === slot.time
+          const endTime = getEndTime(slot.time)
+
+          return (
+            <button
+              key={slot.time}
+              type="button"
+              onClick={() => onSelectTime(slot.time)}
+              className={cn(
+                'px-4 py-3 rounded-lg border text-sm font-medium transition-all',
+                'focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2',
+                isSelected && 'bg-primary text-white border-primary shadow-md',
+                !isSelected && 'bg-white text-gray-700 border-gray-300 hover:border-primary hover:bg-gray-50 hover:shadow-sm'
               )}
-              <span className={cn(
-                'font-medium',
-                isDisabled && 'line-through'
-              )}>{formatTime(slot.time)}</span>
-              {isDisabled && (
-                <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded">
-                  Reserved
-                </span>
-              )}
-            </div>
-          </button>
-        )
-      })}
-      </div>
+              aria-label={`Book from ${formatTime(slot.time)} to ${formatTime(endTime)}`}
+            >
+              <div className="flex flex-col items-center gap-1">
+                <span className="font-semibold">{formatTime(slot.time)}</span>
+                <span className="text-xs opacity-75">to</span>
+                <span className="font-semibold">{formatTime(endTime)}</span>
+                {duration > 1 && (
+                  <span className="text-xs mt-1 px-2 py-0.5 bg-primary/10 rounded">
+                    {duration}h
+                  </span>
+                )}
+              </div>
+            </button>
+          )
+        })}
+        </div>
+      )}
     </div>
   )
 }
