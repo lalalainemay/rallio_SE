@@ -21,7 +21,7 @@ export default function AuthLayout({
           {/* Logo */}
           <div className="mb-8">
             <img
-              src="/logo.svg"
+              src="/logo.png"
               alt="Rallio"
               className="w-20 h-20"
             />
@@ -62,7 +62,7 @@ export default function AuthLayout({
         <div className="lg:hidden bg-rallio-gradient p-6 flex items-center justify-center">
           <Link href="/" className="flex items-center gap-3">
             <img
-              src="/logo.svg"
+              src="/logo.png"
               alt="Rallio"
               className="w-10 h-10"
             />

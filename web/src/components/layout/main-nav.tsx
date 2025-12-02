@@ -40,14 +40,12 @@ export function MainNav({ user }: MainNavProps) {
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <Link href="/home" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <div className="w-5 h-5 border-2 border-white rotate-45 flex items-center justify-center">
-                  <svg className="-rotate-45 w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-              <span className="text-xl font-bold tracking-wider text-gray-900">RALLIO</span>
+              <img
+                src="/logo.png"
+                alt="Rallio"
+                className="w-8 h-8"
+              />
+              <span className="text-xl font-bold tracking-wider text-gray-900">Rallio</span>
             </Link>
 
             {/* Nav Links */}
@@ -132,14 +130,12 @@ export function MainNav({ user }: MainNavProps) {
       <header className="md:hidden border-b border-gray-200 bg-white sticky top-0 z-50">
         <div className="flex h-14 items-center justify-between px-4">
           <Link href="/home" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-              <div className="w-4 h-4 border-2 border-white rotate-45 flex items-center justify-center">
-                <svg className="-rotate-45 w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </div>
-            <span className="text-lg font-bold tracking-wider text-gray-900">RALLIO</span>
+            <img
+              src="/logo.png"
+              alt="Rallio"
+              className="w-7 h-7"
+            />
+            <span className="text-lg font-bold tracking-wider text-gray-900">Rallio</span>
           </Link>
           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
             <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

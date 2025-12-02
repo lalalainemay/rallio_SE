@@ -20,9 +20,11 @@ export function SidebarNav({ user }: SidebarNavProps) {
   const router = useRouter()
   const [isExpanded, setIsExpanded] = useState(false)
   const [hasQueueMasterRole, setHasQueueMasterRole] = useState(false)
+  const [hasCourtAdminRole, setHasCourtAdminRole] = useState(false)
+  const [hasGlobalAdminRole, setHasGlobalAdminRole] = useState(false)
 
   useEffect(() => {
-    const checkQueueMasterRole = async () => {
+    const checkUserRoles = async () => {
       const supabase = createClient()
       const { data: { user: currentUser } } = await supabase.auth.getUser()
       
@@ -38,11 +40,13 @@ export function SidebarNav({ user }: SidebarNavProps) {
         `)
         .eq('user_id', currentUser.id)
 
-      const isQueueMaster = roles?.some((r: any) => r.roles?.name === 'queue_master')
-      setHasQueueMasterRole(isQueueMaster || false)
+      const roleNames = roles?.map((r: any) => r.roles?.name) || []
+      setHasQueueMasterRole(roleNames.includes('queue_master'))
+      setHasCourtAdminRole(roleNames.includes('court_admin'))
+      setHasGlobalAdminRole(roleNames.includes('global_admin'))
     }
 
-    checkQueueMasterRole()
+    checkUserRoles()
   }, [])
 
   const handleSignOut = async () => {
@@ -80,13 +84,13 @@ export function SidebarNav({ user }: SidebarNavProps) {
         <div className="px-4 py-6 flex justify-center">
           <Link href="/home" className="flex items-center gap-2">
             <img
-              src="/logo.svg"
+              src="/logo.png"
               alt="Rallio"
               className="w-10 h-10 flex-shrink-0"
             />
             {isExpanded && (
               <span className="text-xl font-bold text-primary tracking-wider whitespace-nowrap">
-                RALLIO
+                Rallio
               </span>
             )}
           </Link>
@@ -121,6 +125,40 @@ export function SidebarNav({ user }: SidebarNavProps) {
 
         {/* Bottom Actions */}
         <div className="px-3 py-4 border-t border-gray-200 space-y-1">
+          {/* Global Admin Link (if has role) */}
+          {hasGlobalAdminRole && (
+            <Link
+              href="/admin"
+              className={cn(
+                'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors bg-red-50 text-red-600 hover:bg-red-100',
+                isExpanded ? '' : 'justify-center'
+              )}
+              title={!isExpanded ? 'Global Admin' : undefined}
+            >
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              {isExpanded && <span>Global Admin</span>}
+            </Link>
+          )}
+
+          {/* Court Admin Link (if has role) */}
+          {hasCourtAdminRole && (
+            <Link
+              href="/court-admin"
+              className={cn(
+                'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors bg-blue-50 text-blue-600 hover:bg-blue-100',
+                isExpanded ? '' : 'justify-center'
+              )}
+              title={!isExpanded ? 'Court Admin' : undefined}
+            >
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              {isExpanded && <span>Court Admin</span>}
+            </Link>
+          )}
+
           {/* Queue Master Link (if has role) */}
           {hasQueueMasterRole && (
             <Link

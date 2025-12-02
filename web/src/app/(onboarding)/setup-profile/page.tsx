@@ -270,7 +270,7 @@ export default function SetupProfilePage() {
         <div className="max-w-lg w-full bg-white rounded-2xl shadow-lg p-8 text-center">
           {/* Logo */}
           <img
-            src="/logo.svg"
+            src="/logo.png"
             alt="Rallio"
             className="mx-auto w-20 h-20 mb-6"
           />

@@ -68,13 +68,13 @@ export default function GlobalAdminSidebar({ user }: GlobalAdminSidebarProps) {
           <div className="px-4 py-6 flex justify-center">
             <Link href="/admin" className="flex items-center gap-2">
               <img
-                src="/logo.svg"
+                src="/logo.png"
                 alt="Rallio"
                 className="w-10 h-10 flex-shrink-0 brightness-0 invert"
               />
               {isExpanded && (
                 <span className="text-xl font-bold text-white tracking-wider whitespace-nowrap">
-                  RALLIO
+                  Rallio
                 </span>
               )}
             </Link>
