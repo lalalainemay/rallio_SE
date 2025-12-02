@@ -260,3 +260,105 @@ export async function createMayaCheckout(params: {
     sourceId: source.id,
   }
 }
+
+// =============================================
+// REFUND API METHODS
+// =============================================
+
+import type {
+  PayMongoRefund,
+  CreateRefundParams,
+  RefundReason,
+} from './types'
+
+/**
+ * Create a refund for a payment
+ * @param params - Refund parameters including payment_id, amount, and reason
+ * @returns The created refund object
+ */
+export async function createRefund(params: CreateRefundParams): Promise<PayMongoRefund> {
+  console.log('🔄 [PayMongo] Creating refund:', {
+    paymentId: params.payment_id,
+    amount: params.amount,
+    amountPesos: params.amount / 100,
+    reason: params.reason,
+  })
+
+  const response = await paymongoFetch<PayMongoResponse<PayMongoRefund>>(
+    '/refunds',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        data: {
+          attributes: {
+            amount: params.amount,
+            payment_id: params.payment_id,
+            reason: params.reason,
+            notes: params.notes,
+            metadata: params.metadata,
+          },
+        },
+      }),
+    }
+  )
+
+  console.log('✅ [PayMongo] Refund created:', {
+    refundId: response.data.id,
+    status: response.data.attributes.status,
+  })
+
+  return response.data
+}
+
+/**
+ * Get a refund by ID
+ * @param refundId - The PayMongo refund ID
+ * @returns The refund object
+ */
+export async function getRefund(refundId: string): Promise<PayMongoRefund> {
+  console.log('🔍 [PayMongo] Getting refund:', refundId)
+
+  const response = await paymongoFetch<PayMongoResponse<PayMongoRefund>>(
+    `/refunds/${refundId}`,
+    { method: 'GET' }
+  )
+
+  return response.data
+}
+
+/**
+ * List refunds for a specific payment
+ * @param paymentId - The PayMongo payment ID to filter by
+ * @returns Array of refund objects
+ */
+export async function listRefundsForPayment(paymentId: string): Promise<PayMongoRefund[]> {
+  console.log('🔍 [PayMongo] Listing refunds for payment:', paymentId)
+
+  const response = await paymongoFetch<{ data: PayMongoRefund[] }>(
+    `/refunds?payment_id=${paymentId}`,
+    { method: 'GET' }
+  )
+
+  return response.data
+}
+
+/**
+ * Helper: Create a refund with peso amount (converts to centavos)
+ * @param params - Refund parameters with amount in pesos
+ * @returns The created refund object
+ */
+export async function createRefundInPesos(params: {
+  amount: number // In pesos
+  paymentId: string // PayMongo payment ID
+  reason: RefundReason
+  notes?: string
+  metadata?: Record<string, any>
+}): Promise<PayMongoRefund> {
+  return createRefund({
+    amount: pesosToCentavos(params.amount),
+    payment_id: params.paymentId,
+    reason: params.reason,
+    notes: params.notes,
+    metadata: params.metadata,
+  })
+}

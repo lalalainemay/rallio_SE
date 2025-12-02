@@ -298,7 +298,7 @@ export default function MapViewPage() {
               <p className="text-sm text-gray-500">Try adjusting your filters</p>
             </div>
           ) : (
-            <div className="w-full h-full">
+            <div className="w-full h-full" style={{ minHeight: 'calc(100vh - 80px)' }}>
               <VenueMap venues={venues} />
             </div>
           )}

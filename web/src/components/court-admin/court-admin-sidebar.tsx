@@ -16,7 +16,8 @@ import {
   LogOut,
   User,
   ArrowLeft,
-  Clock
+  Clock,
+  Undo2
 } from 'lucide-react'
 
 interface CourtAdminSidebarProps {
@@ -43,6 +44,7 @@ export function CourtAdminSidebar({ user, venues }: CourtAdminSidebarProps) {
   const navItems = [
     { href: '/court-admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
     { href: '/court-admin/reservations', label: 'Reservations', icon: Calendar },
+    { href: '/court-admin/refunds', label: 'Refunds', icon: Undo2 },
     { href: '/court-admin/venues', label: 'My Venues', icon: Building2 },
     { href: '/court-admin/pending-courts', label: 'Pending Courts', icon: Clock },
     { href: '/court-admin/analytics', label: 'Analytics', icon: BarChart3 },

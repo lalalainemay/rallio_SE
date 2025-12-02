@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 
 interface SidebarNavProps {
   user: {
@@ -165,6 +166,11 @@ export function SidebarNav({ user }: SidebarNavProps) {
         </div>
         </div>
       </aside>
+
+      {/* Mobile Notification Bell - Fixed at top right */}
+      <div className="md:hidden fixed top-4 right-4 z-50">
+        <NotificationBell />
+      </div>
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">

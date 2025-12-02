@@ -139,6 +139,16 @@ export async function POST(request: NextRequest) {
         await handlePaymentFailed(eventData, eventId)
         break
 
+      case 'refund.succeeded':
+        console.log('[PayMongo Webhook] 💸 Handling refund.succeeded event')
+        await handleRefundEvent(eventData, eventType)
+        break
+
+      case 'refund.failed':
+        console.log('[PayMongo Webhook] ❌ Handling refund.failed event')
+        await handleRefundEvent(eventData, eventType)
+        break
+
       default:
         console.log('[PayMongo Webhook] ⚠️ Unhandled webhook event type:', eventType)
     }
@@ -1098,4 +1108,172 @@ async function handlePaymentFailed(data: any, eventId?: string) {
   }
 
   console.log('Reservation cancelled due to payment failure:', payment.reservation_id)
+}
+
+/**
+ * Handle refund.succeeded and refund.failed events
+ * This fires when a refund is processed by PayMongo
+ */
+async function handleRefundEvent(data: any, eventType: string) {
+  console.log('[handleRefundEvent] 🔄 Processing refund event:', {
+    eventType,
+    refundId: data?.id,
+    status: data?.attributes?.status,
+    paymentId: data?.attributes?.payment_id,
+    amount: data?.attributes?.amount,
+  })
+
+  const supabase = createServiceClient()
+  
+  const refundId = data?.id
+  const paymentId = data?.attributes?.payment_id
+  const rallioRefundId = data?.attributes?.metadata?.rallio_refund_id
+  const amount = data?.attributes?.amount
+  const status = data?.attributes?.status
+  
+  // Find the refund record in our database
+  let refundRecord: any = null
+  
+  // First try by Rallio refund ID from metadata
+  if (rallioRefundId) {
+    const { data: found } = await supabase
+      .from('refunds')
+      .select('*, reservations(*)')
+      .eq('id', rallioRefundId)
+      .single()
+    refundRecord = found
+  }
+  
+  // Then try by external ID
+  if (!refundRecord && refundId) {
+    const { data: found } = await supabase
+      .from('refunds')
+      .select('*, reservations(*)')
+      .eq('external_id', refundId)
+      .single()
+    refundRecord = found
+  }
+  
+  // Finally try by PayMongo payment ID
+  if (!refundRecord && paymentId) {
+    const { data: found } = await supabase
+      .from('refunds')
+      .select('*, reservations(*)')
+      .eq('payment_external_id', paymentId)
+      .in('status', ['pending', 'processing'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+    refundRecord = found
+  }
+  
+  if (!refundRecord) {
+    console.error('[handleRefundEvent] ❌ Refund record not found in database')
+    return
+  }
+  
+  console.log('[handleRefundEvent] ✅ Found refund record:', {
+    id: refundRecord.id,
+    currentStatus: refundRecord.status,
+    reservationId: refundRecord.reservation_id,
+  })
+  
+  const processedAt = new Date().toISOString()
+  
+  if (eventType === 'refund.succeeded') {
+    // Update refund record as succeeded
+    await supabase
+      .from('refunds')
+      .update({
+        status: 'succeeded',
+        external_id: refundId,
+        processed_at: processedAt,
+        metadata: {
+          ...refundRecord.metadata,
+          webhook_event: {
+            type: eventType,
+            processed_at: processedAt,
+          }
+        }
+      })
+      .eq('id', refundRecord.id)
+    
+    // Update reservation status to refunded
+    const reservationRecord = normalizeReservation(refundRecord.reservations)
+    const reservationMetadata = reservationRecord?.metadata || {}
+    
+    await supabase
+      .from('reservations')
+      .update({
+        status: 'refunded',
+        metadata: {
+          ...reservationMetadata,
+          refunded_at: processedAt,
+          refund_id: refundRecord.id,
+          refund_amount: amount,
+        }
+      })
+      .eq('id', refundRecord.reservation_id)
+    
+    // Create notification for user
+    const { createNotification } = await import('@/lib/notifications')
+    await createNotification({
+      userId: refundRecord.user_id,
+      type: 'refund_processed',
+      title: 'Refund Processed',
+      message: 'Your refund has been processed successfully. Funds will be returned to your original payment method within 5-10 business days.',
+      metadata: {
+        refund_id: refundRecord.id,
+        reservation_id: refundRecord.reservation_id,
+        amount: amount,
+      },
+    })
+    
+    console.log('[handleRefundEvent] ✅ Refund succeeded:', refundRecord.id)
+    
+  } else if (eventType === 'refund.failed') {
+    // Update refund record as failed
+    await supabase
+      .from('refunds')
+      .update({
+        status: 'failed',
+        external_id: refundId,
+        processed_at: processedAt,
+        error_message: 'Refund failed at payment provider',
+        error_code: data?.attributes?.failure_code,
+        metadata: {
+          ...refundRecord.metadata,
+          webhook_event: {
+            type: eventType,
+            processed_at: processedAt,
+            failure_code: data?.attributes?.failure_code,
+            failure_message: data?.attributes?.failure_message,
+          }
+        }
+      })
+      .eq('id', refundRecord.id)
+    
+    // Create notification for user about failed refund
+    const { createNotification } = await import('@/lib/notifications')
+    await createNotification({
+      userId: refundRecord.user_id,
+      type: 'refund_processed',
+      title: 'Refund Failed',
+      message: 'Your refund could not be processed. Please contact support for assistance.',
+      metadata: {
+        refund_id: refundRecord.id,
+        reservation_id: refundRecord.reservation_id,
+        error: 'Payment provider could not process the refund',
+      },
+    })
+    
+    console.log('[handleRefundEvent] ❌ Refund failed:', refundRecord.id)
+  }
+  
+  try {
+    revalidatePath('/reservations')
+    revalidatePath('/bookings')
+  } catch (e) {
+    console.warn('RevalidatePath failed in webhook:', e)
+  }
 }

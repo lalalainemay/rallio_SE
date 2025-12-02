@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { AvailabilityModal } from '@/components/venue/availability-modal'
+import { EmptyCourtsState } from '@/components/courts/empty-courts-state'
 
 interface Court {
   id: string
@@ -28,6 +29,11 @@ export function VenueDetailsClient({ courts, venueId, venueName }: VenueDetailsC
   const handleViewAvailability = (court: Court) => {
     setSelectedCourt(court)
     setIsModalOpen(true)
+  }
+
+  // Show empty state if no courts available
+  if (courts.length === 0) {
+    return <EmptyCourtsState venueName={venueName} />
   }
 
   return (

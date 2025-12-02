@@ -29,7 +29,6 @@ export function MainNav({ user }: MainNavProps) {
     { href: '/courts', label: 'Courts', icon: CourtsIcon },
     { href: '/queue', label: 'Queue', icon: QueueIcon },
     { href: '/bookings', label: 'Bookings', icon: BookingsIcon },
-    { href: '/reservations', label: 'Reservations', icon: ReservationsIcon },
     { href: '/profile', label: 'Profile', icon: ProfileIcon },
   ]
 

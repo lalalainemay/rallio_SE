@@ -248,78 +248,90 @@ export function AvailabilityModal({
                       <p className="text-sm text-gray-500">No time slots available</p>
                       <p className="text-xs text-gray-400 mt-1">Please select another date</p>
                     </div>
-                  ) : (() => {
-                    const availableStartTimes = getAvailableStartTimes()
-                    
-                    if (availableStartTimes.length === 0) {
-                      return (
-                        <div className="p-8 text-center">
-                          <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <p className="text-sm text-gray-500">No {duration}-hour slots available</p>
-                          <p className="text-xs text-gray-400 mt-1">Try a shorter duration or different date</p>
+                  ) : (
+                    <>
+                      {duration > 1 && (
+                        <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
+                          <p className="text-xs text-blue-700">
+                            <span className="font-semibold">Multi-hour booking:</span> Select a start time - your booking will span {duration} consecutive hours
+                          </p>
                         </div>
-                      )
-                    }
-                    
-                    return (
-                      <>
-                        {duration > 1 && (
-                          <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
-                            <p className="text-xs text-blue-700">
-                              <span className="font-semibold">Multi-hour booking:</span> Select a start time - your booking will span {duration} consecutive hours
-                            </p>
-                          </div>
-                        )}
-                        <div className="max-h-96 overflow-y-auto divide-y divide-gray-100">
-                          {availableStartTimes.map((slot, index) => {
-                            const endTime = getEndTime(slot.time, duration)
-                            const isSelected = selectedSlot?.time === slot.time
-                            const totalPrice = (slot.price || hourlyRate) * duration
-                            
-                            return (
-                              <button
-                                key={`${slot.time}-${index}`}
-                                onClick={() => setSelectedSlot(slot)}
-                                className={`w-full px-4 py-3 text-left transition-colors ${
-                                  isSelected
+                      )}
+                      <div className="max-h-96 overflow-y-auto divide-y divide-gray-100">
+                        {timeSlots.map((slot, index) => {
+                          const endTime = getEndTime(slot.time, duration)
+                          const isSelected = selectedSlot?.time === slot.time
+                          const totalPrice = (slot.price || hourlyRate) * duration
+                          // For multi-hour booking, check if all consecutive hours are available
+                          const isAvailableForDuration = duration === 1 ? slot.available : (slot.available && isDurationAvailable(slot.time, duration))
+                          
+                          return (
+                            <button
+                              key={`${slot.time}-${index}`}
+                              onClick={() => isAvailableForDuration && setSelectedSlot(slot)}
+                              disabled={!isAvailableForDuration}
+                              className={`w-full px-4 py-3 text-left transition-colors ${
+                                !isAvailableForDuration
+                                  ? 'bg-gray-100 cursor-not-allowed'
+                                  : isSelected
                                     ? 'bg-primary text-white'
                                     : 'hover:bg-gray-50'
-                                }`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-3">
-                                    <svg
-                                      className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-gray-400'}`}
-                                      fill="none"
-                                      stroke="currentColor"
-                                      viewBox="0 0 24 24"
-                                    >
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <div>
-                                      <p className={`font-medium ${isSelected ? 'text-white' : 'text-gray-900'}`}>
-                                        {formatTime(slot.time)} to {formatTime(endTime)}
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <svg
+                                    className={`w-5 h-5 ${
+                                      !isAvailableForDuration 
+                                        ? 'text-gray-400' 
+                                        : isSelected 
+                                          ? 'text-white' 
+                                          : 'text-gray-400'
+                                    }`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <div>
+                                    <p className={`font-medium ${
+                                      !isAvailableForDuration 
+                                        ? 'text-gray-400' 
+                                        : isSelected 
+                                          ? 'text-white' 
+                                          : 'text-gray-900'
+                                    }`}>
+                                      {formatTime(slot.time)} to {formatTime(endTime)}
+                                    </p>
+                                    {!isAvailableForDuration && (
+                                      <p className="text-xs text-gray-400 font-medium">
+                                        Reserved
                                       </p>
-                                      {duration > 1 && (
-                                        <p className={`text-xs font-medium ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
-                                          {duration} hours
-                                        </p>
-                                      )}
-                                    </div>
+                                    )}
+                                    {isAvailableForDuration && duration > 1 && (
+                                      <p className={`text-xs font-medium ${isSelected ? 'text-white/80' : 'text-gray-500'}`}>
+                                        {duration} hours
+                                      </p>
+                                    )}
                                   </div>
-                                  <span className={`text-sm font-semibold ${isSelected ? 'text-white' : 'text-gray-700'}`}>
-                                    ₱{totalPrice}
-                                  </span>
                                 </div>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </>
-                    )
-                  })()}
+                                <span className={`text-sm font-semibold ${
+                                  !isAvailableForDuration 
+                                    ? 'text-gray-400' 
+                                    : isSelected 
+                                      ? 'text-white' 
+                                      : 'text-gray-700'
+                                }`}>
+                                  ₱{totalPrice}
+                                </span>
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

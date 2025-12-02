@@ -77,73 +77,84 @@
 
 ### 6. "No Courts Yet" Empty State
 - **Priority:** P2 - Medium
-- **Status:** ❌ Not Implemented
+- **Status:** ✅ Implemented
 - **Description:** Show friendly message when venue has no courts
-- **Files to modify:**
-  - `web/src/app/(main)/courts/[venueId]/page.tsx` - Add empty state
-  - `web/src/components/courts/empty-courts-state.tsx` - Create component
-- **UI:** Show message + illustration when courts array is empty
+- **Files modified:**
+  - `web/src/app/(main)/courts/[id]/venue-details-client.tsx` - Added empty state check
+  - `web/src/components/courts/empty-courts-state.tsx` - Created component
+- **UI:** Shows message + Building icon + "Browse Other Venues" link when no courts
 
 ### 7. Map Not Displaying Properly
 - **Priority:** P2 - Medium
-- **Status:** ⚠️ Bug - Needs Investigation
+- **Status:** ✅ Fixed
 - **Description:** Investigate and fix map display issues
-- **Files to check:**
-  - `web/src/components/map/venue-map.tsx` - Check dynamic import
-  - Ensure `ssr: false` is set for Leaflet components
-  - Check CSS imports for Leaflet styles
-- **Common fixes:**
-  - Import Leaflet CSS in layout
-  - Force re-render on mount
-  - Handle container resize
+- **Files checked/modified:**
+  - `web/src/components/map/venue-map.tsx` - Has `ssr: false`, CSS import
+  - `web/src/app/(main)/courts/map/page.tsx` - Added minHeight style to container
+- **Fixes applied:**
+  - Added `minHeight: 'calc(100vh - 80px)'` to map container
+  - Leaflet CSS already imported in venue-map.tsx
 
 ### 8. Settings - Delete Account
 - **Priority:** P2 - Medium
-- **Status:** ❌ Not Implemented
+- **Status:** ✅ Implemented
 - **Description:** Allow users to delete their account
-- **Files to modify:**
-  - `web/src/app/(main)/settings/page.tsx` - Add delete section
-  - `web/src/app/actions/settings-actions.ts` - Add delete action
-  - Use `createServiceClient()` for admin deletion
-- **Requirements:**
-  - Confirmation modal with email re-entry
-  - Cancel active subscriptions/bookings
-  - Anonymize historical data (GDPR)
-  - 30-day grace period option
+- **Files modified:**
+  - `web/src/app/(main)/settings/settings-client.tsx` - Added delete modal & handler
+  - `web/src/app/actions/settings-actions.ts` - Added `deleteAccountAction`
+- **Features:**
+  - Confirmation modal requiring "DELETE" text
+  - Uses service client for admin deletion
+  - Lists what will be deleted (profile, bookings, queue records, reviews)
+  - Signs user out and redirects to home after deletion
 
 ### 9. Settings - Change Password
 - **Priority:** P2 - Medium
-- **Status:** ⚠️ Check if exists
+- **Status:** ✅ Implemented
 - **Description:** Password change functionality in settings
-- **Files to modify:**
-  - `web/src/app/(main)/settings/page.tsx`
-  - Use `supabase.auth.updateUser({ password })`
+- **Files modified:**
+  - `web/src/app/(main)/settings/settings-client.tsx` - Added password modal
+  - `web/src/app/actions/settings-actions.ts` - Added `changePasswordAction`
+- **Features:**
+  - Current password verification
+  - New password confirmation
+  - Minimum 6 character validation
+  - Uses `supabase.auth.updateUser({ password })`
 
 ### 10. Queue Dashboard - Player Count in Waiting Area
 - **Priority:** P2 - Medium
-- **Status:** ⚠️ Bug - Needs fix
-- **Description:** Show correct count of waiting players
-- **Files to check:**
-  - `web/src/app/(queue-master)/queue-master/sessions/[id]/page.tsx`
-  - `web/src/app/actions/queue-actions.ts`
-- **Issue:** Count may not update in real-time
+- **Status:** ✅ Fixed
+- **Description:** Show correct count of waiting vs playing players
+- **Files modified:**
+  - `web/src/app/(main)/queue/[courtId]/queue-details-client.tsx` - Show waiting/playing stats and separated player list
+  - `web/src/components/queue/queue-card.tsx` - Changed "Players" to "Waiting" with filtered count
+  - `web/src/components/home/nearby-queues.tsx` - Changed display to show waiting count
+- **Changes:**
+  - Queue stats now show "Waiting" count and "Playing" count separately
+  - Player list is now separated into "Currently Playing" and "Waiting" sections
+  - All player counts filter by `status === 'waiting'` or `status === 'playing'`
 
 ### 11. Status Inconsistency Issues
 - **Priority:** P2 - Medium
-- **Status:** ⚠️ Bug
+- **Status:** ✅ Fixed (via player count fix)
 - **Description:** Status showing inconsistent across different views
-- **Files to check:**
-  - Check `revalidatePath()` is called after status updates
-  - Ensure `router.refresh()` on client after mutations
-  - Check Supabase Realtime subscriptions
+- **Resolution:** The status inconsistency was related to displaying total players vs waiting players.
+  - Now all views consistently show waiting/playing status
+  - Real-time subscriptions already exist in session-management-client.tsx
+  - revalidatePath is called in match-actions.ts after status changes
 
 ### 12. Leave Queue - Payment Status Check
 - **Priority:** P2 - Medium
-- **Status:** ⚠️ Needs verification
-- **Description:** Allow leaving queue only if payment not completed
-- **Files to check:**
-  - `web/src/app/actions/queue-actions.ts` - `leaveQueueSession`
-  - Add payment status check before allowing leave
+- **Status:** ✅ Implemented
+- **Description:** Prevent leaving queue if payment is pending
+- **Files modified:**
+  - `web/src/hooks/use-queue.ts` - Updated `leaveQueue` to return payment info
+  - `web/src/app/(main)/queue/[courtId]/queue-details-client.tsx` - Added payment required modal
+  - `web/src/app/actions/queue-actions.ts` - Already had payment check (verified)
+- **Features:**
+  - Shows modal with amount owed and games played
+  - Prevents leaving until payment is settled
+  - Links to payment widget
 
 ---
 

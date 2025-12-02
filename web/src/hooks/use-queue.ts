@@ -202,12 +202,12 @@ export function useQueue(courtId: string) {
     }
   }
 
-  const leaveQueue = async () => {
+  const leaveQueue = async (): Promise<{ success: boolean; requiresPayment?: boolean; amountOwed?: number; gamesPlayed?: number; error?: string }> => {
     console.log('[useQueue] ➖ Leaving queue')
 
     if (!queue) {
       setError('No queue session found')
-      return
+      return { success: false, error: 'No queue session found' }
     }
 
     try {
@@ -215,20 +215,28 @@ export function useQueue(courtId: string) {
 
       if (!result.success) {
         if ((result as any).requiresPayment) {
-          // Payment required - you could trigger payment flow here
-          setError(`Payment required: ${(result as any).amountOwed} PHP for ${(result as any).gamesPlayed} games`)
-          return
+          // Payment required - return this info to the caller without setting global error
+          console.log('[useQueue] ⚠️ Payment required to leave queue')
+          return {
+            success: false,
+            requiresPayment: true,
+            amountOwed: (result as any).amountOwed,
+            gamesPlayed: (result as any).gamesPlayed,
+            error: 'Payment required',
+          }
         }
         setError(result.error || 'Failed to leave queue')
-        return
+        return { success: false, error: result.error || 'Failed to leave queue' }
       }
 
       // Refresh queue data
       await fetchQueue()
       console.log('[useQueue] ✅ Successfully left queue')
+      return { success: true }
     } catch (err: any) {
       console.error('[useQueue] ❌ Error leaving queue:', err)
       setError(err.message || 'Failed to leave queue')
+      return { success: false, error: err.message || 'Failed to leave queue' }
     }
   }
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { updateProfileAction, updatePlayerProfileAction } from '@/app/actions/settings-actions'
+import { AvatarUpload } from '@/components/profile/avatar-upload'
 
 interface ProfileEditClientProps {
   profile: any
@@ -167,34 +168,14 @@ export function ProfileEditClient({ profile, player }: ProfileEditClientProps) {
           {/* Avatar */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Profile Picture</label>
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
-                {avatarPreview ? (
-                  <img src={avatarPreview} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-2xl font-medium text-gray-400">
-                    {formData.firstName?.charAt(0) || profile?.display_name?.charAt(0) || '?'}
-                  </span>
-                )}
-              </div>
-              <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarSelect}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Change Photo
-                </button>
-                <p className="text-xs text-gray-500 mt-1">JPG, PNG or GIF. Max 5MB.</p>
-              </div>
-            </div>
+            <AvatarUpload
+              userId={profile.id}
+              currentAvatarUrl={profile?.avatar_url}
+              size="lg"
+              onUploadComplete={(url) => {
+                setAvatarPreview(url || null)
+              }}
+            />
           </div>
 
           <hr />

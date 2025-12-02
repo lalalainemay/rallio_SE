@@ -42,9 +42,9 @@ export default function PaymentFailedPage() {
               <Button className="w-full">Try Again</Button>
             </Link>
           )}
-          <Link href="/reservations" className="block">
+          <Link href="/bookings" className="block">
             <Button variant="outline" className="w-full">
-              View My Reservations
+              View My Bookings
             </Button>
           </Link>
           <Link href="/courts" className="block">

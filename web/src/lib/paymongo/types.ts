@@ -177,3 +177,49 @@ export interface PayMongoError {
 export interface PayMongoResponse<T> {
   data: T
 }
+
+// =============================================
+// REFUND TYPES
+// =============================================
+
+export type RefundReason = 
+  | 'requested_by_customer'
+  | 'duplicate'
+  | 'fraudulent'
+
+export interface PayMongoRefund {
+  id: string
+  type: 'refund'
+  attributes: {
+    amount: number // In centavos
+    currency: string
+    payment_id: string
+    reason: RefundReason
+    status: 'pending' | 'succeeded' | 'failed'
+    notes?: string
+    metadata?: Record<string, any>
+    livemode: boolean
+    created_at: number
+    updated_at: number
+  }
+}
+
+export interface CreateRefundParams {
+  amount: number // In centavos
+  payment_id: string // PayMongo payment ID
+  reason: RefundReason
+  notes?: string
+  metadata?: Record<string, any>
+}
+
+export interface PayMongoRefundWebhookEvent {
+  id: string
+  type: 'event'
+  attributes: {
+    type: 'refund.succeeded' | 'refund.failed'
+    livemode: boolean
+    data: PayMongoRefund
+    created_at: number
+    updated_at: number
+  }
+}

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert } from '@/components/ui/alert'
+import { PhoneInput, validatePhilippinePhone } from '@/components/ui/phone-input'
 
 type SignupStep = 'details' | 'phone'
 
@@ -76,6 +77,13 @@ export default function SignupPage() {
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    // Validate Philippine phone number
+    if (!validatePhilippinePhone(formData.phoneNumber)) {
+      setError('Please enter a valid Philippine mobile number (10 digits starting with 9)')
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -179,14 +187,16 @@ export default function SignupPage() {
         <form onSubmit={handlePhoneSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="phoneNumber">Mobile Number (Philippines)</Label>
-            <Input
+            <PhoneInput
               id="phoneNumber"
-              type="tel"
-              placeholder="(+63) 9XX XXX XXXX"
               value={formData.phoneNumber}
-              onChange={(e) => updateFormData('phoneNumber', e.target.value)}
+              onChange={(value) => updateFormData('phoneNumber', value)}
               disabled={isLoading}
+              placeholder="9XX XXX XXXX"
             />
+            <p className="text-xs text-muted-foreground">
+              Enter your 10-digit Philippine mobile number
+            </p>
           </div>
 
           <Button

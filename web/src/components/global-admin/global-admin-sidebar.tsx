@@ -14,7 +14,8 @@ import {
   Settings,
   FileText,
   LogOut,
-  ArrowLeft
+  ArrowLeft,
+  Undo2
 } from 'lucide-react'
 
 interface GlobalAdminSidebarProps {
@@ -41,6 +42,7 @@ export default function GlobalAdminSidebar({ user }: GlobalAdminSidebarProps) {
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
     { href: '/admin/users', label: 'Users', icon: Users },
     { href: '/admin/venues', label: 'Venues', icon: Building2 },
+    { href: '/admin/refunds', label: 'Refunds', icon: Undo2 },
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/admin/moderation', label: 'Moderation', icon: ShieldAlert },
     { href: '/admin/settings', label: 'Settings', icon: Settings },

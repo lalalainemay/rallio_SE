@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 /**
@@ -282,6 +282,91 @@ export async function updatePreferencesAction(data: {
     return { success: true }
   } catch (error: any) {
     console.error('[updatePreferencesAction] Unexpected error:', error)
+    return { success: false, error: error.message || 'Unknown error' }
+  }
+}
+
+/**
+ * Server action to change user password
+ */
+export async function changePasswordAction(data: {
+  currentPassword: string
+  newPassword: string
+}) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { success: false, error: 'Not authenticated' }
+    }
+
+    if (!user.email) {
+      return { success: false, error: 'No email associated with account' }
+    }
+
+    // Verify current password by re-authenticating
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: data.currentPassword,
+    })
+
+    if (signInError) {
+      console.error('[changePasswordAction] Current password verification failed:', signInError)
+      return { success: false, error: 'Current password is incorrect' }
+    }
+
+    // Update to new password
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: data.newPassword,
+    })
+
+    if (updateError) {
+      console.error('[changePasswordAction] Password update error:', updateError)
+      return { success: false, error: updateError.message }
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('[changePasswordAction] Unexpected error:', error)
+    return { success: false, error: error.message || 'Unknown error' }
+  }
+}
+
+/**
+ * Server action to delete user account
+ * This permanently deletes the user and all associated data
+ */
+export async function deleteAccountAction(confirmationText: string) {
+  try {
+    if (confirmationText !== 'DELETE') {
+      return { success: false, error: 'Please type DELETE to confirm' }
+    }
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { success: false, error: 'Not authenticated' }
+    }
+
+    // Use service client to delete user (bypasses RLS)
+    const serviceClient = createServiceClient()
+
+    // Delete the user from auth (this will cascade to profile due to FK)
+    const { error: deleteError } = await serviceClient.auth.admin.deleteUser(user.id)
+
+    if (deleteError) {
+      console.error('[deleteAccountAction] Error deleting user:', deleteError)
+      return { success: false, error: deleteError.message }
+    }
+
+    // Sign out the user from the current session
+    await supabase.auth.signOut()
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('[deleteAccountAction] Unexpected error:', error)
     return { success: false, error: error.message || 'Unknown error' }
   }
 }

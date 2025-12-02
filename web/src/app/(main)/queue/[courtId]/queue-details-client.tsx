@@ -31,6 +31,11 @@ export function QueueDetailsClient({ courtId }: QueueDetailsClientProps) {
   const [ratingOpponents, setRatingOpponents] = useState<any[]>([])
   const [completedMatchId, setCompletedMatchId] = useState<string | null>(null)
   const [showMatchHistory, setShowMatchHistory] = useState(false)
+  const [paymentRequiredInfo, setPaymentRequiredInfo] = useState<{
+    show: boolean
+    amountOwed: number
+    gamesPlayed: number
+  } | null>(null)
   const supabase = createClient()
 
   // Get current user ID
@@ -137,7 +142,17 @@ export function QueueDetailsClient({ courtId }: QueueDetailsClientProps) {
 
   const handleLeaveQueue = async () => {
     setIsLeaving(true)
-    await leaveQueue()
+    const result = await leaveQueue()
+    
+    if (result?.requiresPayment) {
+      // Show payment required modal
+      setPaymentRequiredInfo({
+        show: true,
+        amountOwed: result.amountOwed || 0,
+        gamesPlayed: result.gamesPlayed || 0,
+      })
+    }
+    
     setIsLeaving(false)
   }
 
@@ -222,10 +237,10 @@ export function QueueDetailsClient({ courtId }: QueueDetailsClientProps) {
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
               <Users className="w-4 h-4 text-gray-500" />
-              <span className="text-xs text-gray-600">In Queue</span>
+              <span className="text-xs text-gray-600">Waiting</span>
             </div>
             <p className="text-lg font-bold text-gray-900">
-              {queue.players.length}/{queue.maxPlayers}
+              {queue.players.filter(p => p.status === 'waiting').length}/{queue.maxPlayers}
             </p>
           </div>
 
@@ -242,10 +257,10 @@ export function QueueDetailsClient({ courtId }: QueueDetailsClientProps) {
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-1">
               <Activity className="w-4 h-4 text-gray-500" />
-              <span className="text-xs text-gray-600">Status</span>
+              <span className="text-xs text-gray-600">Playing</span>
             </div>
-            <p className="text-lg font-bold text-gray-900 capitalize">
-              {queue.status}
+            <p className="text-lg font-bold text-gray-900">
+              {queue.players.filter(p => p.status === 'playing').length}
             </p>
           </div>
         </div>
@@ -300,7 +315,7 @@ export function QueueDetailsClient({ courtId }: QueueDetailsClientProps) {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-gray-900 text-lg">
-            Players in Queue ({queue.players.length})
+            Players ({queue.players.length})
           </h3>
           <button
             onClick={refreshQueue}
@@ -324,14 +339,44 @@ export function QueueDetailsClient({ courtId }: QueueDetailsClientProps) {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {queue.players.map((player) => (
-              <PlayerCard
-                key={player.id}
-                player={player}
-                isCurrentUser={player.userId === currentUserId}
-              />
-            ))}
+          <div className="space-y-4">
+            {/* Playing Section */}
+            {queue.players.filter(p => p.status === 'playing').length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-green-700 mb-2 flex items-center gap-2">
+                  <Activity className="w-4 h-4" />
+                  Currently Playing ({queue.players.filter(p => p.status === 'playing').length})
+                </h4>
+                <div className="space-y-2">
+                  {queue.players.filter(p => p.status === 'playing').map((player) => (
+                    <PlayerCard
+                      key={player.id}
+                      player={player}
+                      isCurrentUser={player.userId === currentUserId}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Waiting Section */}
+            {queue.players.filter(p => p.status === 'waiting').length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Waiting ({queue.players.filter(p => p.status === 'waiting').length})
+                </h4>
+                <div className="space-y-2">
+                  {queue.players.filter(p => p.status === 'waiting').map((player) => (
+                    <PlayerCard
+                      key={player.id}
+                      player={player}
+                      isCurrentUser={player.userId === currentUserId}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -504,6 +549,56 @@ export function QueueDetailsClient({ courtId }: QueueDetailsClientProps) {
             refreshQueue()
           }}
         />
+      )}
+
+      {/* Payment Required Modal */}
+      {paymentRequiredInfo?.show && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Payment Required</h3>
+                <p className="text-sm text-gray-500">You must settle your balance before leaving</p>
+              </div>
+            </div>
+
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-orange-700">Games Played</span>
+                <span className="font-semibold text-orange-900">{paymentRequiredInfo.gamesPlayed}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-orange-700">Amount Owed</span>
+                <span className="text-xl font-bold text-orange-900">₱{paymentRequiredInfo.amountOwed.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Please pay your outstanding balance to the Queue Master before leaving the queue.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPaymentRequiredInfo(null)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+              >
+                Close
+              </button>
+              {participant && (
+                <Link
+                  href="#payment-widget"
+                  onClick={() => setPaymentRequiredInfo(null)}
+                  className="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium text-center"
+                >
+                  Pay Now
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
       )}
       </div>
     </>

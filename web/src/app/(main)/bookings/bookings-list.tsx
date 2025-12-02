@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import { cancelReservationAction } from '@/app/actions/reservations'
 import { BookingReviewButton } from '@/components/venue/booking-review-button'
+import { RefundRequestButton } from '@/components/reservations/refund-request-button'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -372,6 +373,20 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
                       bookingDate={booking.start_time}
                       bookingStatus={booking.status}
                     />
+                    
+                    {/* Refund Button for Paid/Confirmed Bookings */}
+                    {['paid', 'confirmed'].includes(booking.status) && booking.amount_paid > 0 && (
+                      <RefundRequestButton
+                        reservationId={booking.id}
+                        status={booking.status}
+                        amountPaid={booking.amount_paid * 100}
+                        totalAmount={booking.total_amount * 100}
+                        startTime={booking.start_time}
+                        onRefundRequested={() => {
+                          setBookings((prev) => prev.filter((b) => b.id !== booking.id))
+                        }}
+                      />
+                    )}
                     
                     {/* Continue Payment Button for Pending Payments */}
                     {paymentStatus.needsPayment && (

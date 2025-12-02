@@ -195,10 +195,18 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+# Custom email templates for Rallio branding
+[auth.email.template.confirmation]
+subject = "🏸 Welcome to Rallio - Confirm Your Email"
+content_path = "./templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "🔐 Reset Your Rallio Password"
+content_path = "./templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "📧 Confirm Your Email Change - Rallio"
+content_path = "./templates/email_change.html"
 
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]

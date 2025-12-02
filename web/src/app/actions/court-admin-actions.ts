@@ -715,3 +715,125 @@ export async function getPendingCourts() {
     return { success: false, error: error.message }
   }
 }
+
+/**
+ * Get refunds for court admin's venues
+ */
+export async function getMyVenueRefunds(options?: {
+  status?: string
+  limit?: number
+  offset?: number
+}): Promise<{ success: boolean; refunds?: any[]; total?: number; error?: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+
+  try {
+    // Get all venue IDs owned by user
+    const { data: venues } = await supabase
+      .from('venues')
+      .select('id')
+      .eq('owner_id', user.id)
+
+    const venueIds = venues?.map(v => v.id) || []
+
+    if (venueIds.length === 0) {
+      return { success: true, refunds: [], total: 0 }
+    }
+
+    // Get court IDs for these venues
+    const { data: courts } = await supabase
+      .from('courts')
+      .select('id')
+      .in('venue_id', venueIds)
+
+    const courtIds = courts?.map(c => c.id) || []
+
+    if (courtIds.length === 0) {
+      return { success: true, refunds: [], total: 0 }
+    }
+
+    // Get reservations for these courts
+    const { data: reservations } = await supabase
+      .from('reservations')
+      .select('id')
+      .in('court_id', courtIds)
+
+    const reservationIds = reservations?.map(r => r.id) || []
+
+    if (reservationIds.length === 0) {
+      return { success: true, refunds: [], total: 0 }
+    }
+
+    // Now get refunds for these reservations
+    let query = supabase
+      .from('refunds')
+      .select(`
+        *,
+        reservations (
+          id,
+          start_time,
+          end_time,
+          total_amount,
+          user_id,
+          courts (
+            name,
+            venues (name)
+          )
+        )
+      `, { count: 'exact' })
+      .in('reservation_id', reservationIds)
+      .order('created_at', { ascending: false })
+
+    if (options?.status) {
+      query = query.eq('status', options.status)
+    }
+
+    if (options?.limit) {
+      query = query.limit(options.limit)
+    }
+
+    if (options?.offset) {
+      query = query.range(options.offset, options.offset + (options.limit || 20) - 1)
+    }
+
+    const { data: refunds, error, count } = await query
+
+    if (error) {
+      console.error('Error fetching refunds:', error)
+      return { success: false, error: error.message }
+    }
+
+    // Fetch profiles separately for the user_ids
+    const userIds = [...new Set(refunds?.map(r => r.user_id).filter(Boolean) || [])]
+    
+    let profilesMap: Record<string, any> = {}
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, phone')
+        .in('id', userIds)
+      
+      if (profiles) {
+        profilesMap = profiles.reduce((acc, p) => {
+          acc[p.id] = p
+          return acc
+        }, {} as Record<string, any>)
+      }
+    }
+
+    // Attach profiles to refunds
+    const refundsWithProfiles = refunds?.map(refund => ({
+      ...refund,
+      profiles: profilesMap[refund.user_id] || null
+    })) || []
+
+    return { success: true, refunds: refundsWithProfiles, total: count || 0 }
+  } catch (error: any) {
+    console.error('Error fetching venue refunds:', error)
+    return { success: false, error: error.message }
+  }
+}
