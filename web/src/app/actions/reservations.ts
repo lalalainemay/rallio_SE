@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { format } from 'date-fns'
 import { revalidatePath } from 'next/cache'
+import { createNotification, NotificationTemplates } from '@/lib/notifications'
 
 export interface TimeSlot {
   time: string
@@ -71,14 +72,17 @@ export async function getAvailableTimeSlotsAction(
   const dateOnlyString = format(date, 'yyyy-MM-dd')
   const activeStatuses = ['pending_payment', 'pending', 'paid', 'confirmed']
 
+  console.log(`[Availability Check] Querying for date: ${dateOnlyString}`)
+  console.log(`[Availability Check] Date range: ${dateOnlyString}T00:00:00 to ${dateOnlyString}T23:59:59`)
+
   const [reservationsResult, queueSessionsResult] = await Promise.all([
     // Get reservations
     supabase
       .from('reservations')
       .select('start_time, end_time, status')
       .eq('court_id', courtId)
-      .gte('end_time', `${dateOnlyString}T00:00:00`)
-      .lt('start_time', `${dateOnlyString}T23:59:59`)
+      .gte('start_time', `${dateOnlyString}T00:00:00`)
+      .lte('start_time', `${dateOnlyString}T23:59:59`)
       .in('status', activeStatuses),
 
     // Get queue sessions
@@ -86,8 +90,8 @@ export async function getAvailableTimeSlotsAction(
       .from('queue_sessions')
       .select('start_time, end_time, status, approval_status')
       .eq('court_id', courtId)
-      .gte('end_time', `${dateOnlyString}T00:00:00`)
-      .lt('start_time', `${dateOnlyString}T23:59:59`)
+      .gte('start_time', `${dateOnlyString}T00:00:00`)
+      .lte('start_time', `${dateOnlyString}T23:59:59`)
       .in('status', ['draft', 'active', 'pending_approval'])
       .in('approval_status', ['pending', 'approved'])
   ])
@@ -107,6 +111,15 @@ export async function getAvailableTimeSlotsAction(
 
   console.log(`[Availability Check] Court: ${courtId}, Date: ${dateOnlyString}`)
   console.log(`[Availability Check] Found ${reservations.length} reservations and ${queueSessions.length} queue sessions`)
+  
+  if (reservations.length > 0) {
+    console.log('[Availability Check] Reservations:', reservations.map(r => ({
+      start: r.start_time,
+      end: r.end_time,
+      status: r.status
+    })))
+  }
+  
   console.log(`[Availability Check] Total booked slots: ${allBookedSlots.length}`)
 
   // Mark unavailable slots based on existing reservations AND queue sessions

@@ -56,7 +56,7 @@ export function SidebarNav({ user }: SidebarNavProps) {
     { href: '/courts', label: 'Find Court', icon: CourtIcon },
     { href: '/queue', label: 'Queue', icon: QueueIcon },
     { href: '/bookings', label: 'Bookings', icon: BookingIcon },
-    { href: '/matches', label: 'My Match', icon: MatchIcon },
+    { href: '/matches', label: 'Matches', icon: MatchIcon },
     { href: '/profile', label: 'Profile', icon: ProfileIcon },
   ]
 

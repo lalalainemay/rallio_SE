@@ -73,7 +73,7 @@ export async function updatePlayerProfileAction(data: {
     // Check if player record exists
     const { data: existingPlayer } = await supabase
       .from('players')
-      .select('id')
+      .select('id, skill_level, skill_level_updated_at')
       .eq('user_id', user.id)
       .maybeSingle()
 
@@ -95,17 +95,56 @@ export async function updatePlayerProfileAction(data: {
         return { success: false, error: insertError.message }
       }
     } else {
+      // Skill level change restrictions
+      if (data.skillLevel !== undefined && data.skillLevel !== existingPlayer.skill_level) {
+        const oldLevel = existingPlayer.skill_level || 5
+        const newLevel = data.skillLevel
+        const levelDiff = Math.abs(newLevel - oldLevel)
+
+        // Restriction 1: Can't change more than ±2 levels at once
+        if (levelDiff > 2) {
+          return {
+            success: false,
+            error: `Skill level can only be adjusted by ±2 levels at a time. Current: ${oldLevel}, Requested: ${newLevel}`
+          }
+        }
+
+        // Restriction 2: 30-day cooldown between changes
+        const lastChanged = existingPlayer.skill_level_updated_at
+        if (lastChanged) {
+          const daysSinceLastChange = Math.floor(
+            (Date.now() - new Date(lastChanged).getTime()) / (1000 * 60 * 60 * 24)
+          )
+          const cooldownDays = 30
+
+          if (daysSinceLastChange < cooldownDays) {
+            const daysRemaining = cooldownDays - daysSinceLastChange
+            return {
+              success: false,
+              error: `Skill level can only be changed once every ${cooldownDays} days. You can change it again in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}.`
+            }
+          }
+        }
+      }
+
       // Update existing player record
+      const updateData: any = {
+        bio: data.bio,
+        birth_date: data.birthDate,
+        gender: data.gender,
+        play_style: data.playStyle,
+        updated_at: new Date().toISOString(),
+      }
+
+      // Only update skill_level and timestamp if it's actually changing
+      if (data.skillLevel !== undefined && data.skillLevel !== existingPlayer.skill_level) {
+        updateData.skill_level = data.skillLevel
+        updateData.skill_level_updated_at = new Date().toISOString()
+      }
+
       const { error: updateError } = await supabase
         .from('players')
-        .update({
-          bio: data.bio,
-          birth_date: data.birthDate,
-          gender: data.gender,
-          skill_level: data.skillLevel,
-          play_style: data.playStyle,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('user_id', user.id)
 
       if (updateError) {

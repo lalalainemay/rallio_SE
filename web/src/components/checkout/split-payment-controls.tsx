@@ -14,8 +14,11 @@ export function SplitPaymentControls() {
   if (!bookingData) return null
 
   const capacity = bookingData.capacity
+  const isDisabled = true // Split payment feature temporarily disabled
 
   const handleToggle = () => {
+    // Feature disabled - do nothing
+    if (isDisabled) return
     setSplitPayment(!isSplitPayment)
   }
 
@@ -32,8 +35,8 @@ export function SplitPaymentControls() {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6">
-      <div className="flex items-start justify-between">
+    <div className="bg-white border border-gray-200 rounded-xl p-6 opacity-60 relative">
+      <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <h4 className="font-semibold text-gray-900">Play Together, Pay Together!</h4>
@@ -43,21 +46,25 @@ export function SplitPaymentControls() {
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-600">
-            Divide the total fee among your group — fair and simple.
-          </p>
         </div>
-
-        {/* Toggle Switch */}
-        <button
+        
+        {/* Coming Soon Badge & Toggle */}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+            Coming Soon
+          </span>
+          <button
           onClick={handleToggle}
+          disabled={isDisabled}
           className={`
-            relative inline-flex h-7 w-12 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent
-            transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2
+            relative inline-flex h-7 w-12 flex-shrink-0 rounded-full border-2 border-transparent
+            transition-colors duration-200 ease-in-out
+            ${isDisabled ? 'cursor-not-allowed bg-gray-300' : 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2'}
             ${isSplitPayment ? 'bg-primary' : 'bg-gray-200'}
           `}
           role="switch"
           aria-checked={isSplitPayment}
+          aria-disabled={isDisabled}
         >
           <span
             className={`
@@ -66,11 +73,21 @@ export function SplitPaymentControls() {
               ${isSplitPayment ? 'translate-x-5' : 'translate-x-0'}
             `}
           />
-        </button>
+          </button>
+        </div>
       </div>
 
-      {/* Player Counter */}
-      {isSplitPayment && (
+      <div>
+        <p className="text-sm text-gray-600 mb-2">
+          Divide the total fee among your group — fair and simple.
+        </p>
+        <p className="text-xs text-gray-500 italic">
+          This feature is under development. For now, the booking creator pays the full amount.
+        </p>
+      </div>
+
+      {/* Player Counter - Hidden when disabled */}
+      {isSplitPayment && !isDisabled && (
         <div className="mt-4 pt-4 border-t border-gray-200">
           <div className="flex items-center justify-between">
             <div>

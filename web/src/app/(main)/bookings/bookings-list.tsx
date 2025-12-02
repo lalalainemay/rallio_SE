@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Spinner } from '@/components/ui/spinner'
 import { cancelReservationAction } from '@/app/actions/reservations'
+import { BookingReviewButton } from '@/components/venue/booking-review-button'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -362,6 +363,16 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
 
                   {/* Actions */}
                   <div className="flex flex-col gap-2 pt-4 border-t border-gray-200">
+                    {/* Review Button for Past Confirmed Bookings */}
+                    <BookingReviewButton
+                      courtId={booking.courts.id}
+                      courtName={booking.courts.name}
+                      venueName={booking.courts.venues.name}
+                      venueId={booking.courts.venues.id}
+                      bookingDate={booking.start_time}
+                      bookingStatus={booking.status}
+                    />
+                    
                     {/* Continue Payment Button for Pending Payments */}
                     {paymentStatus.needsPayment && (
                       <Button 

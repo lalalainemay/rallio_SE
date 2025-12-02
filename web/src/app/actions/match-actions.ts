@@ -3,6 +3,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { checkRateLimit, createRateLimitConfig } from '@/lib/rate-limiter'
+import { createBulkNotifications, NotificationTemplates } from '@/lib/notifications'
+import { calculateNewEloRating } from '@rallio/shared/utils'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 /**
  * Match Management Server Actions
@@ -187,6 +190,23 @@ export async function assignMatchFromQueue(sessionId: string, numPlayers: number
       console.error('[assignMatchFromQueue] ⚠️ Failed to update participant status:', updateError)
     }
 
+    // 🔔 Send notifications to all assigned players
+    const { data: court } = await supabase
+      .from('courts')
+      .select('name')
+      .eq('id', session.court_id)
+      .single()
+
+    const courtName = court?.name || 'Court'
+    
+    const notificationData = participants.map(p => ({
+      userId: p.user_id,
+      ...NotificationTemplates.queueMatchAssigned(matchNumber, courtName, sessionId, match.id),
+    }))
+
+    await createBulkNotifications(notificationData)
+    console.log('[assignMatchFromQueue] 📬 Sent notifications to', participants.length, 'players')
+
     console.log('[assignMatchFromQueue] ✅ Match assigned successfully:', {
       matchId: match.id,
       matchNumber,
@@ -279,6 +299,139 @@ export async function startMatch(matchId: string) {
   } catch (error: any) {
     console.error('[startMatch] ❌ Error:', error)
     return { success: false, error: error.message || 'Failed to start match' }
+  }
+}
+
+/**
+ * Calculate skill level based on ELO rating
+ * Rating ranges correspond to skill levels 1-10
+ */
+function calculateSkillLevel(rating: number): number {
+  if (rating < 1200) return 1
+  if (rating < 1300) return 2
+  if (rating < 1400) return 3
+  if (rating < 1500) return 4
+  if (rating < 1600) return 5
+  if (rating < 1700) return 6
+  if (rating < 1800) return 7
+  if (rating < 1900) return 8
+  if (rating < 2000) return 9
+  return 10
+}
+
+/**
+ * Update player ELO ratings, skill levels, and match statistics
+ * Only applies to competitive queue sessions
+ */
+async function updatePlayerRatingsAndStats(
+  supabase: SupabaseClient,
+  match: any,
+  winner: 'team_a' | 'team_b' | 'draw',
+  allPlayers: string[],
+  winners: string[]
+) {
+  try {
+    // Check if this is a competitive match
+    const { data: queueSession } = await supabase
+      .from('queue_sessions')
+      .select('mode')
+      .eq('id', match.queue_session_id)
+      .single()
+
+    const isCompetitive = queueSession?.mode === 'competitive'
+    
+    console.log('[updatePlayerRatingsAndStats] 🎯 Match mode:', queueSession?.mode, '- Updating ratings:', isCompetitive)
+
+    // Get all player data
+    const { data: players, error: playersError } = await supabase
+      .from('players')
+      .select('id, user_id, rating, skill_level, total_games_played, total_wins, total_losses')
+      .in('user_id', allPlayers)
+
+    if (playersError || !players) {
+      console.error('[updatePlayerRatingsAndStats] ❌ Error fetching players:', playersError)
+      return
+    }
+
+    const playerMap = new Map(players.map(p => [p.user_id, p]))
+
+    // Update each player's stats and rating
+    for (const playerId of allPlayers) {
+      const player = playerMap.get(playerId)
+      if (!player) continue
+
+      const won = winners.includes(playerId)
+      const isDraw = winner === 'draw'
+
+      // Update basic stats (always, regardless of mode)
+      const totalGamesPlayed = (player.total_games_played || 0) + 1
+      const totalWins = won && !isDraw ? (player.total_wins || 0) + 1 : player.total_wins || 0
+      const totalLosses = !won && !isDraw ? (player.total_losses || 0) + 1 : player.total_losses || 0
+
+      const updateData: any = {
+        total_games_played: totalGamesPlayed,
+        total_wins: totalWins,
+        total_losses: totalLosses,
+      }
+
+      // Update ELO rating and skill level (only for competitive matches)
+      if (isCompetitive) {
+        const currentRating = parseFloat(player.rating?.toString() || '1500')
+        
+        // Calculate average opponent rating
+        const opponentIds = won 
+          ? allPlayers.filter(id => !winners.includes(id))
+          : winners
+        
+        const opponentRatings = opponentIds
+          .map(id => parseFloat(playerMap.get(id)?.rating?.toString() || '1500'))
+        
+        const avgOpponentRating = opponentRatings.length > 0
+          ? opponentRatings.reduce((sum, r) => sum + r, 0) / opponentRatings.length
+          : 1500
+
+        // Calculate new rating (K-factor of 32 for standard chess ELO)
+        const newRating = isDraw
+          ? currentRating // No rating change for draws
+          : calculateNewEloRating(currentRating, avgOpponentRating, won, 32)
+
+        // Calculate new skill level based on rating
+        const newSkillLevel = calculateSkillLevel(newRating)
+
+        updateData.rating = newRating
+        
+        // Only update skill level if it changed (respects the ±2 level restriction in profile updates)
+        if (newSkillLevel !== player.skill_level) {
+          const levelDiff = Math.abs(newSkillLevel - (player.skill_level || 5))
+          
+          // Auto-update skill level only if within ±2 levels
+          if (levelDiff <= 2) {
+            updateData.skill_level = newSkillLevel
+            updateData.skill_level_updated_at = new Date().toISOString()
+            
+            console.log(`[updatePlayerRatingsAndStats] 📈 Player ${playerId} skill updated: ${player.skill_level} → ${newSkillLevel} (rating: ${currentRating} → ${newRating})`)
+          } else {
+            console.log(`[updatePlayerRatingsAndStats] ⚠️ Player ${playerId} skill change too large: ${player.skill_level} → ${newSkillLevel} (would exceed ±2 limit)`)
+          }
+        }
+
+        console.log(`[updatePlayerRatingsAndStats] 🏆 Player ${playerId} rating updated: ${currentRating} → ${newRating} (${won ? 'won' : 'lost'})`)
+      }
+
+      // Update player record
+      const { error: updateError } = await supabase
+        .from('players')
+        .update(updateData)
+        .eq('user_id', playerId)
+
+      if (updateError) {
+        console.error(`[updatePlayerRatingsAndStats] ❌ Error updating player ${playerId}:`, updateError)
+      }
+    }
+
+    console.log('[updatePlayerRatingsAndStats] ✅ Player ratings and stats updated')
+  } catch (error) {
+    console.error('[updatePlayerRatingsAndStats] ❌ Error:', error)
   }
 }
 
@@ -407,8 +560,14 @@ export async function recordMatchScore(
       }
     }
 
-    // TODO: Update player ELO ratings using shared utility
-    // const { calculateEloChange } = require('@rallio/shared/utils')
+    // Update player ELO ratings and stats (only for competitive matches)
+    await updatePlayerRatingsAndStats(
+      supabase,
+      match,
+      scores.winner,
+      allPlayers,
+      winners
+    )
 
     console.log('[recordMatchScore] ✅ Score recorded successfully')
 

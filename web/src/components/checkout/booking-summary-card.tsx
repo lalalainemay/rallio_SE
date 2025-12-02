@@ -9,15 +9,19 @@ export function BookingSummaryCard() {
     isSplitPayment,
     playerCount,
     getSubtotal,
+    getPlatformFeeAmount,
     getTotalAmount,
     getPerPlayerAmount,
     discountAmount,
     applicableDiscounts,
+    platformFeePercentage,
+    platformFeeEnabled,
   } = useCheckoutStore()
 
   if (!bookingData) return null
 
   const subtotal = getSubtotal()
+  const platformFee = getPlatformFeeAmount()
   const total = getTotalAmount()
   const perPlayer = getPerPlayerAmount()
 
@@ -62,8 +66,8 @@ export function BookingSummaryCard() {
       {/* Price Breakdown */}
       <div className="space-y-2 py-4">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Booking Fee</span>
-          <span className="font-medium text-gray-900">₱{subtotal.toFixed(2)}</span>
+          <span className="text-gray-600">Court Fee</span>
+          <span className="font-medium text-gray-900">₱{bookingData.hourlyRate.toFixed(2)}</span>
         </div>
 
         {discountAmount !== 0 && (
@@ -89,6 +93,22 @@ export function BookingSummaryCard() {
                 </span>
               </div>
             )}
+          </div>
+        )}
+
+        {discountAmount !== 0 && (
+          <div className="flex justify-between text-sm pt-1">
+            <span className="text-gray-600">Subtotal</span>
+            <span className="font-medium text-gray-900">₱{subtotal.toFixed(2)}</span>
+          </div>
+        )}
+
+        {platformFeeEnabled && platformFee > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">
+              Platform Fee ({platformFeePercentage}%)
+            </span>
+            <span className="font-medium text-gray-900">₱{platformFee.toFixed(2)}</span>
           </div>
         )}
 

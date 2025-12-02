@@ -117,6 +117,17 @@ export async function initiatePaymentAction(
     const successUrl = `${baseUrl}/checkout/success?reservation=${reservationId}`
     const failedUrl = `${baseUrl}/checkout/failed?reservation=${reservationId}`
 
+    // NOTE: Split payment feature disabled - always charge full amount
+    // TODO: Implement proper multi-player payment flow with unique payment links
+    const amountToCharge = reservation.total_amount
+
+    console.log('[initiatePaymentAction] 💰 Payment calculation:', {
+      paymentType: reservation.payment_type,
+      totalAmount: reservation.total_amount,
+      numPlayers: reservation.num_players,
+      amountToCharge,
+    })
+
     let checkoutUrl: string
     let sourceId: string
 
@@ -124,7 +135,7 @@ export async function initiatePaymentAction(
     try {
       if (paymentMethod === 'gcash') {
         const result = await createGCashCheckout({
-          amount: reservation.total_amount,
+          amount: amountToCharge,
           description,
           successUrl,
           failedUrl,
@@ -137,13 +148,15 @@ export async function initiatePaymentAction(
             reservation_id: reservationId,
             user_id: user.id,
             payment_reference: paymentReference,
+            payment_type: reservation.payment_type || 'full',
+            player_count: reservation.num_players?.toString() || '1',
           },
         })
         checkoutUrl = result.checkoutUrl
         sourceId = result.sourceId
       } else if (paymentMethod === 'paymaya') {
         const result = await createMayaCheckout({
-          amount: reservation.total_amount,
+          amount: amountToCharge,
           description,
           successUrl,
           failedUrl,
@@ -156,6 +169,8 @@ export async function initiatePaymentAction(
             reservation_id: reservationId,
             user_id: user.id,
             payment_reference: paymentReference,
+            payment_type: reservation.payment_type || 'full',
+            player_count: reservation.num_players?.toString() || '1',
           },
         })
         checkoutUrl = result.checkoutUrl
@@ -198,7 +213,7 @@ export async function initiatePaymentAction(
       reference: paymentReference,
       user_id: user.id,
       reservation_id: reservationId,
-      amount: reservation.total_amount,
+      amount: amountToCharge, // Use the calculated per-player amount for split payments
       currency: 'PHP',
       payment_method: paymentMethod,
       payment_provider: 'paymongo',
@@ -211,6 +226,9 @@ export async function initiatePaymentAction(
         source_id: sourceId,
         reservation_id: reservationId,
         payment_reference: paymentReference,
+        payment_type: reservation.payment_type || 'full',
+        player_count: reservation.num_players || 1,
+        is_split_payment: reservation.payment_type === 'split',
       },
     }
     console.log('[initiatePaymentAction] Payment data:', paymentData)
