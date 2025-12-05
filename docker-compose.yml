@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY=${NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY}
+      - PAYMONGO_SECRET_KEY=${PAYMONGO_SECRET_KEY}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Usage:
+# 1. Copy .env.local to .env in root directory
+# 2. Run: docker-compose up --build
+# 3. Access: http://localhost:3000

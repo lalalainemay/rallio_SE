@@ -1,0 +1,42 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Next.js
+.next
+out
+
+# Environment files (don't include in image - pass at runtime)
+.env
+.env.local
+.env.development
+.env.production
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+README.md
+docs/
+
+# Tests
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+coverage/
+
+# Build artifacts
+*.log

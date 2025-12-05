@@ -128,7 +128,7 @@ export default function LoginPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">Log in sor Sign up</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Log in or Sign up</h1>
         <p className="text-muted-foreground">Your game starts here</p>
       </div>
 
