@@ -31,8 +31,10 @@ interface Profile {
     id: string;
     first_name: string | null;
     last_name: string | null;
+    display_name: string | null;
     phone: string | null;
     avatar_url: string | null;
+    bio: string | null;
     profile_completed: boolean;
 }
 
@@ -41,9 +43,12 @@ interface Player {
     user_id: string;
     skill_level: number | null;
     play_style: string | null;
+    preferred_play_style: string | null;
     rating: number;
     total_games_played: number;
     total_wins: number;
+    current_win_streak: number;
+    max_win_streak: number;
 }
 
 interface AuthState {

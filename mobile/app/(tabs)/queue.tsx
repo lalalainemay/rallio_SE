@@ -200,8 +200,7 @@ export default function QueueScreen() {
     }, [fetchQueueSessions]);
 
     const handleSessionPress = (sessionId: string) => {
-        // TODO: Navigate to session details
-        console.log('Session pressed:', sessionId);
+        router.push(`/queue/${sessionId}`);
     };
 
     const renderEmptyState = () => (
@@ -241,7 +240,6 @@ export default function QueueScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.title}>Join Queue</Text>
-                <Text style={styles.subtitle}>Find players and join a game session</Text>
             </View>
 
             {/* Content */}

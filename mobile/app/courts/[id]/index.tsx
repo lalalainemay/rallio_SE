@@ -33,10 +33,11 @@ interface Venue {
     address: string;
     latitude: number | null;
     longitude: number | null;
-    opening_hours: string | null;
+    opening_hours: Record<string, any> | null;
     description: string | null;
-    amenities: string[] | null;
-    contacts: { phone?: string; email?: string } | null;
+    phone: string | null;
+    email: string | null;
+    metadata: { amenities?: string[] } | null;
     courts?: Court[];
 }
 
@@ -67,8 +68,9 @@ export default function VenueDetailsScreen() {
         longitude,
         opening_hours,
         description,
-        amenities,
-        contacts,
+        phone,
+        email,
+        metadata,
         courts (
           id,
           name,
@@ -207,7 +209,11 @@ export default function VenueDetailsScreen() {
                             <Text style={styles.sectionTitle}>Opening Hours</Text>
                             <View style={styles.infoRow}>
                                 <Ionicons name="time-outline" size={18} color={Colors.dark.primary} />
-                                <Text style={styles.infoText}>{venue.opening_hours}</Text>
+                                <Text style={styles.infoText}>
+                                    {typeof venue.opening_hours === 'string'
+                                        ? venue.opening_hours
+                                        : 'See venue for hours'}
+                                </Text>
                             </View>
                         </View>
                     )}
@@ -221,11 +227,11 @@ export default function VenueDetailsScreen() {
                     )}
 
                     {/* Amenities */}
-                    {venue.amenities && venue.amenities.length > 0 && (
+                    {venue.metadata?.amenities && venue.metadata.amenities.length > 0 && (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Amenities</Text>
                             <View style={styles.amenitiesGrid}>
-                                {venue.amenities.map((amenity, index) => (
+                                {venue.metadata.amenities.map((amenity: string, index: number) => (
                                     <View key={index} style={styles.amenityBadge}>
                                         <Ionicons name="checkmark-circle" size={16} color={Colors.dark.primary} />
                                         <Text style={styles.amenityText}>{amenity}</Text>
@@ -252,19 +258,19 @@ export default function VenueDetailsScreen() {
                     </View>
 
                     {/* Contact */}
-                    {venue.contacts && (
+                    {(venue.phone || venue.email) && (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Contact</Text>
-                            {venue.contacts.phone && (
+                            {venue.phone && (
                                 <TouchableOpacity style={styles.contactRow}>
                                     <Ionicons name="call-outline" size={18} color={Colors.dark.primary} />
-                                    <Text style={styles.contactText}>{venue.contacts.phone}</Text>
+                                    <Text style={styles.contactText}>{venue.phone}</Text>
                                 </TouchableOpacity>
                             )}
-                            {venue.contacts.email && (
+                            {venue.email && (
                                 <TouchableOpacity style={styles.contactRow}>
                                     <Ionicons name="mail-outline" size={18} color={Colors.dark.primary} />
-                                    <Text style={styles.contactText}>{venue.contacts.email}</Text>
+                                    <Text style={styles.contactText}>{venue.email}</Text>
                                 </TouchableOpacity>
                             )}
                         </View>
