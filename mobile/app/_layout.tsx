@@ -3,12 +3,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { Colors } from '@/constants/Colors';
 import { useAuthStore } from '@/store/auth-store';
+import { useOnboardingStore } from '@/store/onboarding-store';
+import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -29,11 +31,18 @@ export default function RootLayout() {
   });
 
   const { isInitialized, initialize } = useAuthStore();
+  const { hasCompletedOnboarding, completeOnboarding } = useOnboardingStore();
+  const [showOnboarding, setShowOnboarding] = useState(!hasCompletedOnboarding);
 
   // Initialize auth on mount
   useEffect(() => {
     initialize();
   }, []);
+
+  // Sync onboarding state
+  useEffect(() => {
+    setShowOnboarding(!hasCompletedOnboarding);
+  }, [hasCompletedOnboarding]);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -46,8 +55,23 @@ export default function RootLayout() {
     }
   }, [loaded, isInitialized]);
 
+  const handleOnboardingComplete = useCallback(() => {
+    completeOnboarding();
+    setShowOnboarding(false);
+  }, [completeOnboarding]);
+
   if (!loaded || !isInitialized) {
     return null;
+  }
+
+  // Show onboarding for first-time users
+  if (showOnboarding) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <OnboardingScreen onComplete={handleOnboardingComplete} />
+      </>
+    );
   }
 
   return <RootLayoutNav />;
@@ -83,8 +107,11 @@ function RootLayoutNav() {
       >
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="courts" />
+        <Stack.Screen name="map" options={{ presentation: 'modal' }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </>
   );
 }
+

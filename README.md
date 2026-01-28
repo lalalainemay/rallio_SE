@@ -1,213 +1,132 @@
 # 🏸 Rallio
 
-Badminton Court Finder & Queue Management System for Zamboanga City, Philippines
+**Badminton Court Finder & Queue Management System**  
+*Built for Zamboanga City, Philippines*
 
-**Status:** ~80% Complete | **Web:** Production-ready | **Mobile:** In Development
+---
 
-## Project Structure
+## 📖 What is Rallio?
+
+Rallio is a mobile and web platform that helps badminton players:
+
+- **Find courts** – Discover nearby badminton venues with real-time availability
+- **Book instantly** – Reserve courts and pay via GCash or Maya
+- **Join queues** – Hop into pickup games without the hassle of organizing
+- **Track matches** – Record scores, view match history, and rate players
+
+For **venue owners**, Rallio provides:
+- Dashboard for managing multiple courts
+- Pricing configuration with dynamic discounts
+- Revenue analytics and booking insights
+- Queue approval and session management
+
+---
+
+## 🛠 Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Web** | Next.js 15, React 18, TypeScript, Tailwind CSS 4, shadcn/ui |
+| **Mobile** | React Native, Expo 54, Expo Router |
+| **Backend** | Supabase (PostgreSQL + Auth + Realtime + Storage) |
+| **Maps** | Leaflet + OpenStreetMap (web), react-native-maps (mobile) |
+| **Payments** | PayMongo (GCash, Maya) |
+| **Geospatial** | PostGIS |
+
+---
+
+## 📁 Project Structure
 
 ```
 rallio/
-├── docs/          # Documentation, planning, tasks
+├── web/           # Next.js web application
+├── mobile/        # React Native + Expo mobile app
 ├── backend/       # Supabase migrations & Edge Functions
-├── web/           # Next.js 15 web application
-├── mobile/        # React Native + Expo 54 mobile app
-└── shared/        # Shared types, validations, utilities
+├── shared/        # Shared types, validations, utilities
+└── docs/          # Documentation & planning
 ```
 
 ---
 
-## 🚀 Setup Instructions for Collaborators
+## 🤝 Collaboration Guide
 
 ### Prerequisites
 
-Ensure you have the following installed:
-- **Node.js 18+** - [Download](https://nodejs.org/)
-- **npm 9+** (comes with Node.js)
-- **Git** - [Download](https://git-scm.com/)
+1. **Node.js 18+** – [Download](https://nodejs.org/)
+2. **Git** – [Download](https://git-scm.com/)
+3. **Expo Go app** – For mobile testing (iOS/Android)
 
-You'll also need accounts for:
-- **Supabase** (free tier works) - [supabase.com](https://supabase.com)
-- **PayMongo** (for payment testing) - [paymongo.com](https://paymongo.com)
-
-### Step 1: Clone the Repository
+### Quick Setup
 
 ```bash
+# 1. Clone the repository
 git clone https://github.com/madz/rallio.git
 cd rallio
-```
 
-### Step 2: Install Dependencies
-
-This is a monorepo using npm workspaces. Install everything from the root:
-
-```bash
+# 2. Install all dependencies
 npm install
+
+# 3. Get environment variables from team lead
+# (See "Environment Setup" below)
+
+# 4. Run development server
+npm run dev:web      # Web app at localhost:3000
+npm run dev:mobile   # Mobile app (scan QR with Expo Go)
 ```
 
-This installs dependencies for `web/`, `mobile/`, and `shared/` packages.
+### Environment Setup
 
-### Step 3: Configure Environment Variables
+**Ask the team lead for the `.env` files.** These contain Supabase and PayMongo credentials.
 
-#### Web App (`web/.env.local`)
+Create these files with the credentials you receive:
 
 ```bash
-cp web/.env.example web/.env.local
+# For web development
+web/.env.local
+
+# For mobile development  
+mobile/.env
 ```
 
-Edit `web/.env.local` with your credentials:
-
-```env
-# Supabase (get from Supabase Dashboard → Settings → API)
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# PayMongo (get from PayMongo Dashboard → Developers → API Keys)
-NEXT_PUBLIC_PAYMONGO_PUBLIC_KEY=pk_test_xxxxx
-PAYMONGO_SECRET_KEY=sk_test_xxxxx
-PAYMONGO_WEBHOOK_SECRET=whsec_xxxxx  # Optional for local dev
-
-# App URL
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-#### Mobile App (`mobile/.env`)
-
-```bash
-cp mobile/.env.example mobile/.env
-```
-
-Edit `mobile/.env`:
-
-```env
-EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-EXPO_PUBLIC_PAYMONGO_PUBLIC_KEY=pk_test_xxxxx
-```
-
-### Step 4: Database Setup (Supabase)
-
-If setting up a new Supabase project:
-
-1. Create a new project at [supabase.com](https://supabase.com)
-2. Install Supabase CLI:
-   ```bash
-   npm install -g supabase
-   ```
-3. Link your project:
-   ```bash
-   cd backend/supabase
-   supabase login
-   supabase link --project-ref your-project-ref
-   ```
-4. Apply migrations:
-   ```bash
-   supabase db push
-   ```
-
-> **Note:** If you're joining an existing team, ask for the Supabase credentials - you don't need to run migrations.
-
-### Step 5: Run Development Servers
-
-#### Web App (recommended for most development)
-
-```bash
-npm run dev:web
-```
-
-Open [http://localhost:3000](http://localhost:3000)
-
-#### Mobile App
-
-```bash
-npm run dev:mobile
-# Or: cd mobile && npx expo start
-```
-
-Scan the QR code with Expo Go app on your phone.
-
-### Step 6: Verify Setup
-
-1. **Web**: Go to `http://localhost:3000/login` - you should see the login page
-2. **Create account**: Sign up with email or Google OAuth
-3. **Check database**: Your profile should appear in Supabase → Table Editor → profiles
+> ⚠️ **Never commit `.env` files to Git.** They're already in `.gitignore`.
 
 ---
 
-## 🔑 Getting API Keys
+## 🧑‍💻 Development Commands
 
-### Supabase
-1. Go to [supabase.com](https://supabase.com) → Your Project
-2. Settings → API
-3. Copy: `Project URL`, `anon public`, `service_role`
-
-### PayMongo (for payment testing)
-1. Go to [paymongo.com](https://paymongo.com) → Dashboard
-2. Developers → API Keys
-3. Copy: `Public Key`, `Secret Key`
-4. For webhooks: Developers → Webhooks → Create webhook pointing to `https://your-domain/api/webhooks/paymongo`
+| Command | Description |
+|---------|-------------|
+| `npm run dev:web` | Start web dev server (localhost:3000) |
+| `npm run dev:mobile` | Start Expo mobile server |
+| `npm run build:web` | Production build |
+| `npm run typecheck` | TypeScript validation |
+| `npm run lint` | ESLint check |
+| `npm run format` | Prettier format |
 
 ---
 
-## 📁 Key Files to Know
+## 📚 Key Documentation
 
 | File | Purpose |
 |------|---------|
-| `CLAUDE.md` | AI assistant guidelines, debugging patterns |
-| `docs/tasks.md` | Current tasks and progress tracking |
-| `docs/planning.md` | Development phases and roadmap |
-| `web/src/app/actions/` | Server actions (API logic) |
-| `web/src/lib/supabase/` | Supabase client configurations |
-| `shared/src/` | Shared types, validations, utilities |
+| [docs/planning.md](docs/planning.md) | Development phases & roadmap |
+| [docs/tasks.md](docs/tasks.md) | Current tasks & progress |
+| [CLAUDE.md](CLAUDE.md) | AI assistant guidelines |
 
 ---
 
-## Tech Stack
-
-**Web:**
-- Next.js 15.1.6 (App Router)
-- React 18.3, TypeScript 5
-- Tailwind CSS 4 + shadcn/ui
-- Zustand (state), Zod (validation)
-- Leaflet + OpenStreetMap (maps)
-
-**Mobile:**
-- React Native 0.81.5, Expo 54
-- Expo Router (file-based navigation)
-- react-native-maps
-
-**Backend:**
-- Supabase (PostgreSQL + Auth + RLS)
-- PostGIS (geospatial queries)
-- PayMongo (GCash, Maya payments)
-
-## Documentation
-
-- [CLAUDE.md](CLAUDE.md) - Development guidelines & debugging
-- [docs/planning.md](docs/planning.md) - Development phases
-- [docs/tasks.md](docs/tasks.md) - Current tasks & progress
-
-## Development Commands
-
-```bash
-npm run dev:web      # Web dev server (localhost:3000)
-npm run dev:mobile   # Mobile Expo server
-npm run build:web    # Production build
-npm run typecheck    # TypeScript check
-npm run lint         # ESLint
-npm run format       # Prettier format all files
-```
-
-## Troubleshooting
+## 🐛 Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
 | `Module not found: @rallio/shared` | Run `npm install` from root |
-| Supabase connection error | Check `.env.local` credentials |
-| Map shows white screen | Leaflet SSR issue - check `ssr: false` on dynamic import |
-| Auth callback fails | Ensure `NEXT_PUBLIC_APP_URL` matches your dev URL |
+| Supabase connection error | Check your `.env` credentials |
+| Map shows white screen | Refresh page (Leaflet SSR issue) |
+| Expo app won't connect | Ensure phone and laptop are on same WiFi |
 
 ---
 
-Built with ❤️ for Zamboanga City badminton community
+## 👥 Team
+
+Built with ❤️ for the Zamboanga City badminton community.
+
