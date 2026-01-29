@@ -166,9 +166,8 @@ export function NearbyVenues() {
               )}
               {isOpen !== null && (
                 <span
-                  className={`absolute top-2 right-2 ${
-                    isOpen ? 'bg-primary' : 'bg-gray-500'
-                  } text-white text-[10px] px-2 py-0.5 rounded font-medium`}
+                  className={`absolute top-2 right-2 ${isOpen ? 'bg-primary' : 'bg-gray-500'
+                    } text-white text-[10px] px-2 py-0.5 rounded font-medium`}
                 >
                   {isOpen ? 'OPEN' : 'CLOSED'}
                 </span>
