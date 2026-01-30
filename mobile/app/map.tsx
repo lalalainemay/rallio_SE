@@ -15,7 +15,8 @@ import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, Typography, Radius } from '@/constants/Colors';
 import { Card } from '@/components/ui';
-import { useCourtStore } from '@/store/court-store';
+import { useCourtStore, useFilteredVenues, Venue } from '@/store/court-store';
+import { FilterBottomSheet } from '@/components/courts/FilterBottomSheet';
 
 const { width, height } = Dimensions.get('window');
 const ASPECT_RATIO = width / height;
@@ -30,24 +31,15 @@ const DEFAULT_LOCATION = {
     longitudeDelta: LONGITUDE_DELTA,
 };
 
-interface Venue {
-    id: string;
-    name: string;
-    address: string;
-    latitude?: number;
-    longitude?: number;
-    courts?: {
-        hourly_rate: number;
-    }[];
-}
-
 export default function MapScreen() {
     const mapRef = useRef<MapView>(null);
-    const { venues, isLoading, fetchVenues } = useCourtStore();
+    const { fetchVenues, isLoading } = useCourtStore();
+    const venues = useFilteredVenues(); // Use filtered venues!
     const [region, setRegion] = useState<Region>(DEFAULT_LOCATION);
     const [locationLoading, setLocationLoading] = useState(true);
     const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
     const [locationPermission, setLocationPermission] = useState<boolean | null>(null);
+    const [isFilterVisible, setIsFilterVisible] = useState(false);
 
     useEffect(() => {
         fetchVenues();
@@ -131,7 +123,7 @@ export default function MapScreen() {
             v.longitude !== undefined &&
             typeof v.latitude === 'number' &&
             typeof v.longitude === 'number'
-        ) as Array<{ id: string; name: string; address: string; latitude: number; longitude: number; courts?: { hourly_rate: number }[] }>;
+        );
 
     // Get min price for venue
     const getMinPrice = (venue: Venue) => {
@@ -156,8 +148,8 @@ export default function MapScreen() {
                     <Marker
                         key={venue.id}
                         coordinate={{
-                            latitude: venue.latitude,
-                            longitude: venue.longitude,
+                            latitude: venue.latitude!,
+                            longitude: venue.longitude!,
                         }}
                         onPress={() => handleMarkerPress(venue)}
                     >
@@ -186,17 +178,30 @@ export default function MapScreen() {
                 </View>
             </SafeAreaView>
 
-            {/* My Location Button */}
-            <TouchableOpacity
-                style={styles.locationButton}
-                onPress={handleGoToMyLocation}
-            >
-                <Ionicons
-                    name={locationPermission ? "navigate" : "navigate-outline"}
-                    size={22}
-                    color={Colors.dark.primary}
-                />
-            </TouchableOpacity>
+            {/* Controls Container (Location + Filter) */}
+            <View style={styles.controlsContainer}>
+                <TouchableOpacity
+                    style={styles.controlButton}
+                    onPress={handleGoToMyLocation}
+                >
+                    <Ionicons
+                        name={locationPermission ? "navigate" : "navigate-outline"}
+                        size={22}
+                        color={Colors.dark.primary}
+                    />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={styles.controlButton}
+                    onPress={() => setIsFilterVisible(true)}
+                >
+                    <Ionicons
+                        name="options"
+                        size={22}
+                        color={Colors.dark.text}
+                    />
+                </TouchableOpacity>
+            </View>
 
             {/* Loading Indicator */}
             {(isLoading || locationLoading) && (
@@ -239,6 +244,11 @@ export default function MapScreen() {
                     </Card>
                 </TouchableOpacity>
             )}
+
+            <FilterBottomSheet
+                visible={isFilterVisible}
+                onClose={() => setIsFilterVisible(false)}
+            />
         </View>
     );
 }
@@ -282,10 +292,13 @@ const styles = StyleSheet.create({
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 4,
     },
-    locationButton: {
+    controlsContainer: {
         position: 'absolute',
         right: Spacing.lg,
         top: 140,
+        gap: Spacing.md,
+    },
+    controlButton: {
         width: 48,
         height: 48,
         borderRadius: 24,

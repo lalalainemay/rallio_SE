@@ -93,7 +93,7 @@ export function VenueList() {
         email: formData.email || undefined,
         website: formData.website || undefined
       }
-      
+
       // Add coordinates if provided
       if (formData.latitude) {
         venueData.latitude = parseFloat(formData.latitude)
@@ -102,7 +102,7 @@ export function VenueList() {
         venueData.longitude = parseFloat(formData.longitude)
       }
 
-      const result = await createVenue(venueData)
+      const result = await createVenue(venueData as any)
       if (!result.success) {
         throw new Error(result.error)
       }
@@ -169,7 +169,7 @@ export function VenueList() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">My Venues</h1>
             <p className="text-gray-600">Manage your badminton court venues</p>
           </div>
-          <button 
+          <button
             onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
           >
@@ -240,7 +240,7 @@ export function VenueList() {
           <p className="text-gray-500 mb-6 max-w-md mx-auto">
             Create your first venue to start managing courts and accepting reservations.
           </p>
-          <button 
+          <button
             onClick={() => setShowCreateModal(true)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -318,14 +318,12 @@ export function VenueList() {
                   </div>
                   <div className="text-center">
                     <div className="space-y-1">
-                      <p className={`text-sm font-medium ${
-                        venue.is_active ? 'text-green-600' : 'text-gray-400'
-                      }`}>
+                      <p className={`text-sm font-medium ${venue.is_active ? 'text-green-600' : 'text-gray-400'
+                        }`}>
                         {venue.is_active ? 'Active' : 'Inactive'}
                       </p>
-                      <p className={`text-xs font-medium ${
-                        venue.is_verified ? 'text-blue-600' : 'text-yellow-600'
-                      }`}>
+                      <p className={`text-xs font-medium ${venue.is_verified ? 'text-blue-600' : 'text-yellow-600'
+                        }`}>
                         {venue.is_verified ? 'Verified' : 'Pending Verification'}
                       </p>
                     </div>
@@ -337,11 +335,10 @@ export function VenueList() {
               {/* Status */}
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
-                    venue.is_active
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${venue.is_active
                       ? 'bg-green-100 text-green-700'
                       : 'bg-gray-100 text-gray-700'
-                  }`}>
+                    }`}>
                     {venue.is_active ? (
                       <>
                         <CheckCircle className="w-3 h-3" />
