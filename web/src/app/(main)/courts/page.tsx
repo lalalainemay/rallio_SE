@@ -107,6 +107,7 @@ export default function CourtsPage() {
       for (const venue of result.venues) {
         let totalRating = 0;
         let totalCount = 0;
+        // Cache bust: force new build
 
         for (const court of venue.courts) {
           const { averageRating, totalReviews } = await getCourtAverageRating(court.id);
