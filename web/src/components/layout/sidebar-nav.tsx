@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
+import logo from '@/assets/logo.png'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -27,7 +29,7 @@ export function SidebarNav({ user }: SidebarNavProps) {
     const checkUserRoles = async () => {
       const supabase = createClient()
       const { data: { user: currentUser } } = await supabase.auth.getUser()
-      
+
       if (!currentUser) return
 
       const { data: roles } = await supabase
@@ -80,131 +82,133 @@ export function SidebarNav({ user }: SidebarNavProps) {
             isExpanded ? "w-64" : "w-20"
           )}
         >
-        {/* Logo */}
-        <div className="px-4 py-6 flex justify-center">
-          <Link href="/home" className="flex items-center gap-2">
-            <img
-              src="/logo.png"
-              alt="Rallio"
-              className="w-10 h-10 flex-shrink-0"
-              style={{
-                filter: 'brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(352%) hue-rotate(131deg) brightness(92%) contrast(92%)'
-              }}
-            />
-            {isExpanded && (
-              <span className="text-xl font-bold text-primary tracking-wider whitespace-nowrap">
-                Rallio
-              </span>
-            )}
-          </Link>
-        </div>
+          {/* Logo */}
+          <div className="px-4 py-6 flex justify-center">
+            <Link href="/home" className="flex items-center gap-2">
+              <Image
+                src={logo}
+                alt="Rallio"
+                className="w-10 h-10 flex-shrink-0"
+                width={40}
+                height={40}
+                style={{
+                  filter: 'brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(352%) hue-rotate(131deg) brightness(92%) contrast(92%)'
+                }}
+              />
+              {isExpanded && (
+                <span className="text-xl font-bold text-primary tracking-wider whitespace-nowrap">
+                  Rallio
+                </span>
+              )}
+            </Link>
+          </div>
 
-        {/* Nav Links */}
-        <nav className="flex-1 px-3 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
-            return (
+          {/* Nav Links */}
+          <nav className="flex-1 px-3 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
+                    isExpanded ? '' : 'justify-center',
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  )}
+                  title={!isExpanded ? item.label : undefined}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  {isExpanded && (
+                    <span className="whitespace-nowrap">{item.label}</span>
+                  )}
+                </Link>
+              )
+            })}
+          </nav>
+
+          {/* Bottom Actions */}
+          <div className="px-3 py-4 border-t border-gray-200 space-y-1">
+            {/* Global Admin Link (if has role) */}
+            {hasGlobalAdminRole && (
               <Link
-                key={item.href}
-                href={item.href}
+                href="/admin"
                 className={cn(
-                  'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors',
-                  isExpanded ? '' : 'justify-center',
-                  isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors bg-red-50 text-red-600 hover:bg-red-100',
+                  isExpanded ? '' : 'justify-center'
                 )}
-                title={!isExpanded ? item.label : undefined}
+                title={!isExpanded ? 'Global Admin' : undefined}
               >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                {isExpanded && (
-                  <span className="whitespace-nowrap">{item.label}</span>
-                )}
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                {isExpanded && <span>Global Admin</span>}
               </Link>
-            )
-          })}
-        </nav>
-
-        {/* Bottom Actions */}
-        <div className="px-3 py-4 border-t border-gray-200 space-y-1">
-          {/* Global Admin Link (if has role) */}
-          {hasGlobalAdminRole && (
-            <Link
-              href="/admin"
-              className={cn(
-                'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors bg-red-50 text-red-600 hover:bg-red-100',
-                isExpanded ? '' : 'justify-center'
-              )}
-              title={!isExpanded ? 'Global Admin' : undefined}
-            >
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              {isExpanded && <span>Global Admin</span>}
-            </Link>
-          )}
-
-          {/* Court Admin Link (if has role) */}
-          {hasCourtAdminRole && (
-            <Link
-              href="/court-admin"
-              className={cn(
-                'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors bg-blue-50 text-blue-600 hover:bg-blue-100',
-                isExpanded ? '' : 'justify-center'
-              )}
-              title={!isExpanded ? 'Court Admin' : undefined}
-            >
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              {isExpanded && <span>Court Admin</span>}
-            </Link>
-          )}
-
-          {/* Queue Master Link (if has role) */}
-          {hasQueueMasterRole && (
-            <Link
-              href="/queue-master"
-              className={cn(
-                'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors bg-primary/5 text-primary hover:bg-primary/10',
-                isExpanded ? '' : 'justify-center'
-              )}
-              title={!isExpanded ? 'Queue Master' : undefined}
-            >
-              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              {isExpanded && <span>Queue Master</span>}
-            </Link>
-          )}
-
-          {/* Settings */}
-          <Link
-            href="/settings"
-            className={cn(
-              'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors',
-              isExpanded ? '' : 'justify-center'
             )}
-            title={!isExpanded ? 'Settings' : undefined}
-          >
-            <SettingsIcon className="w-5 h-5 flex-shrink-0" />
-            {isExpanded && <span>Settings</span>}
-          </Link>
 
-          {/* Logout */}
-          <button
-            onClick={handleSignOut}
-            className={cn(
-              'flex items-center gap-3 px-3 py-3 w-full rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors',
-              isExpanded ? '' : 'justify-center'
+            {/* Court Admin Link (if has role) */}
+            {hasCourtAdminRole && (
+              <Link
+                href="/court-admin"
+                className={cn(
+                  'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors bg-blue-50 text-blue-600 hover:bg-blue-100',
+                  isExpanded ? '' : 'justify-center'
+                )}
+                title={!isExpanded ? 'Court Admin' : undefined}
+              >
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                </svg>
+                {isExpanded && <span>Court Admin</span>}
+              </Link>
             )}
-            title={!isExpanded ? 'Logout' : undefined}
-          >
-            <LogoutIcon className="w-5 h-5 flex-shrink-0" />
-            {isExpanded && <span>Logout</span>}
-          </button>
-        </div>
+
+            {/* Queue Master Link (if has role) */}
+            {hasQueueMasterRole && (
+              <Link
+                href="/queue-master"
+                className={cn(
+                  'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors bg-primary/5 text-primary hover:bg-primary/10',
+                  isExpanded ? '' : 'justify-center'
+                )}
+                title={!isExpanded ? 'Queue Master' : undefined}
+              >
+                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                {isExpanded && <span>Queue Master</span>}
+              </Link>
+            )}
+
+            {/* Settings */}
+            <Link
+              href="/settings"
+              className={cn(
+                'flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors',
+                isExpanded ? '' : 'justify-center'
+              )}
+              title={!isExpanded ? 'Settings' : undefined}
+            >
+              <SettingsIcon className="w-5 h-5 flex-shrink-0" />
+              {isExpanded && <span>Settings</span>}
+            </Link>
+
+            {/* Logout */}
+            <button
+              onClick={handleSignOut}
+              className={cn(
+                'flex items-center gap-3 px-3 py-3 w-full rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors',
+                isExpanded ? '' : 'justify-center'
+              )}
+              title={!isExpanded ? 'Logout' : undefined}
+            >
+              <LogoutIcon className="w-5 h-5 flex-shrink-0" />
+              {isExpanded && <span>Logout</span>}
+            </button>
+          </div>
         </div>
       </aside>
 
