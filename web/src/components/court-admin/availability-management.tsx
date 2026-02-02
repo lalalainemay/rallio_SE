@@ -224,8 +224,8 @@ export function AvailabilityManagement({ venueId }: AvailabilityManagementProps)
           <button
             onClick={() => setActiveTab('schedule')}
             className={`px-6 py-2 rounded-lg font-medium transition-colors ${activeTab === 'schedule'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-gray-600 hover:bg-gray-100'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-100'
               }`}
           >
             <div className="flex items-center gap-2">
@@ -236,8 +236,8 @@ export function AvailabilityManagement({ venueId }: AvailabilityManagementProps)
           <button
             onClick={() => setActiveTab('blocked')}
             className={`px-6 py-2 rounded-lg font-medium transition-colors ${activeTab === 'blocked'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-gray-600 hover:bg-gray-100'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-gray-600 hover:bg-gray-100'
               }`}
           >
             <div className="flex items-center gap-2">
@@ -435,47 +435,55 @@ export function AvailabilityManagement({ venueId }: AvailabilityManagementProps)
             </div>
 
             <div className="space-y-4 max-h-96 overflow-y-auto">
-              <div className="flex gap-2 mb-4 bg-gray-50 p-3 rounded-lg">
-                <span className="text-sm font-medium text-gray-700 flex items-center">Quick Actions:</span>
-                <button
-                  onClick={() => {
-                    const monday = operatingHours['monday'];
-                    const newHours = { ...operatingHours };
-                    Object.keys(newHours).forEach(day => {
-                      newHours[day] = { ...monday };
-                    });
-                    setOperatingHours(newHours);
-                  }}
-                  className="text-xs bg-white border border-gray-300 px-2 py-1 rounded hover:bg-gray-100"
-                >
-                  Copy Mon to All
-                </button>
-                <button
-                  onClick={() => {
-                    const monday = operatingHours['monday'];
-                    const newHours = { ...operatingHours };
-                    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
-                      newHours[day] = { ...monday };
-                    });
-                    setOperatingHours(newHours);
-                  }}
-                  className="text-xs bg-white border border-gray-300 px-2 py-1 rounded hover:bg-gray-100"
-                >
-                  Weekdays
-                </button>
-                <button
-                  onClick={() => {
-                    const saturday = operatingHours['saturday'];
-                    const newHours = { ...operatingHours };
-                    ['saturday', 'sunday'].forEach(day => {
-                      newHours[day] = { ...saturday };
-                    });
-                    setOperatingHours(newHours);
-                  }}
-                  className="text-xs bg-white border border-gray-300 px-2 py-1 rounded hover:bg-gray-100"
-                >
-                  Weekends
-                </button>
+              <div className="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100">
+                <p className="text-xs font-semibold text-blue-800 uppercase tracking-wider mb-3">Quick Actions</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => {
+                      const monday = operatingHours['monday']
+                      const newHours = { ...operatingHours }
+                      Object.keys(newHours).forEach(day => {
+                        newHours[day] = { ...monday }
+                      })
+                      setOperatingHours(newHours)
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white text-blue-700 text-xs font-medium rounded-lg border border-blue-200 hover:bg-blue-50 transition-colors shadow-sm"
+                    title="Copy Monday's hours to every day of the week"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    Copy Monday to All Days
+                  </button>
+                  <button
+                    onClick={() => {
+                      const monday = operatingHours['monday']
+                      const newHours = { ...operatingHours }
+                        ;['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].forEach(day => {
+                          newHours[day] = { ...monday }
+                        })
+                      setOperatingHours(newHours)
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors shadow-sm"
+                    title="Copy Monday's hours to Tuesday through Friday"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    Copy Mon → Weekdays
+                  </button>
+                  <button
+                    onClick={() => {
+                      const saturday = operatingHours['saturday']
+                      const newHours = { ...operatingHours }
+                        ;['saturday', 'sunday'].forEach(day => {
+                          newHours[day] = { ...saturday }
+                        })
+                      setOperatingHours(newHours)
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white text-gray-700 text-xs font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors shadow-sm"
+                    title="Copy Saturday's hours to Sunday"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    Copy Sat → Weekends
+                  </button>
+                </div>
               </div>
 
               {Object.keys(operatingHours).map(day => (
