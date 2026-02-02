@@ -171,20 +171,26 @@ export default function CourtsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Search Header */}
-      <div className="bg-white border-b sticky top-0 z-30 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative w-full md:w-96">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+        <div className="container mx-auto px-4 pt-4 pb-3 md:pt-4 md:pb-4">
+          <div className="flex items-center justify-between mb-3 md:mb-0">
+            {/* Mobile Title */}
+            <div className="md:hidden">
+              <h1 className="text-xl font-bold text-gray-900">Courts</h1>
+              <p className="text-sm text-gray-500">Find and book courts</p>
+            </div>
+
+            {/* Desktop: Search Bar inline */}
+            <div className="hidden md:flex flex-1 max-w-md relative mr-4">
               <input
                 type="text"
                 placeholder="Search courts, venues, locations..."
-                className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-lg focus:ring-2 focus:ring-primary/50"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
               <svg
-                className="w-5 h-5 text-gray-400 absolute left-3 top-2.5"
+                className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -198,12 +204,18 @@ export default function CourtsPage() {
               </svg>
             </div>
 
-            <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+            {/* Results Count - Desktop */}
+            <span className="text-sm text-gray-600 hidden md:block mr-4 whitespace-nowrap">
+              {total} {total === 1 ? 'result' : 'results'} found
+            </span>
+
+            {/* Right Side Actions - Desktop */}
+            <div className="hidden md:flex items-center gap-3">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border whitespace-nowrap transition-colors ${showFilters
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border whitespace-nowrap transition-colors ${showFilters
                   ? 'bg-primary text-white border-primary'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                   }`}
               >
                 <svg
@@ -232,9 +244,9 @@ export default function CourtsPage() {
               <button
                 onClick={getUserLocation}
                 disabled={locationLoading}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border whitespace-nowrap transition-colors ${userLocation
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border whitespace-nowrap transition-colors ${userLocation
                   ? 'bg-green-50 text-green-700 border-green-200'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                   }`}
               >
                 {locationLoading ? (
@@ -260,13 +272,13 @@ export default function CourtsPage() {
                     />
                   </svg>
                 )}
-                {userLocation ? 'Near Me' : 'Nearby'}
+                <span className="text-sm font-medium">{userLocation ? 'Near Me' : 'Nearby'}</span>
               </button>
 
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               >
                 <option value="newest">Newest</option>
                 <option value="rating">Highest Rated</option>
@@ -274,97 +286,187 @@ export default function CourtsPage() {
                 <option value="price_high">Price: High to Low</option>
                 {userLocation && <option value="distance">Distance</option>}
               </select>
+
+              {/* View Toggle */}
+              <div className="flex rounded-lg border border-gray-300 overflow-hidden bg-white shrink-0">
+                <button
+                  className="px-4 py-2.5 text-sm font-medium flex items-center gap-2 bg-primary text-white"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  <span>List</span>
+                </button>
+                <Link
+                  href="/courts/map"
+                  className="px-4 py-2.5 text-sm font-medium flex items-center gap-2 bg-white text-gray-700 hover:bg-gray-50 transition-colors border-l border-gray-300"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                  <span>Map</span>
+                </Link>
+              </div>
             </div>
+
+            {/* Mobile: Filter Toggle Button */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`md:hidden flex items-center justify-center w-10 h-10 rounded-full transition-colors ${showFilters
+                ? 'bg-primary text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+            </button>
           </div>
 
-          {/* Expanded Filters */}
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t animate-in slide-in-from-top-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div>
-                  <h3 className="font-semibold mb-3">Price Range (₱)</h3>
-                  <input
-                    type="range"
-                    min="0"
-                    max="2000"
-                    step="50"
-                    value={priceRange[1]}
-                    onChange={(e) => setPriceRange([0, Number(e.target.value)])}
-                    className="w-full accent-primary"
-                  />
-                  <div className="flex justify-between text-sm text-gray-600 mt-1">
-                    <span>₱0</span>
-                    <span>₱{priceRange[1]}</span>
-                  </div>
-                </div>
+          {/* Mobile: Search Bar */}
+          <div className="md:hidden flex gap-2">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Search courts..."
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-gray-50 text-sm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <svg
+                className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
 
-                <div>
-                  <h3 className="font-semibold mb-3">Court Type</h3>
-                  <div className="flex gap-2">
-                    {['indoor', 'outdoor'].map((type) => (
-                      <button
-                        key={type}
-                        onClick={() =>
-                          setCourtType(courtType === type ? null : (type as 'indoor' | 'outdoor'))
-                        }
-                        className={`px-3 py-1.5 rounded-full text-sm capitalize border ${courtType === type
-                          ? 'bg-primary/10 border-primary text-primary'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                          }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+        {/* Mobile: View Toggle & Results */}
+        <div className="md:hidden overflow-x-auto scrollbar-hide border-t border-gray-100">
+          <div className="flex items-center gap-2 px-4 py-2.5 min-w-max">
+            {/* View Toggle - Mobile */}
+            <Link
+              href="/courts"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-primary text-white whitespace-nowrap"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+              List
+            </Link>
+            <Link
+              href="/courts/map"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              Map
+            </Link>
 
-                <div>
-                  <h3 className="font-semibold mb-3">Rating</h3>
-                  <div className="flex gap-2">
-                    {[4, 3, 2].map((rating) => (
-                      <button
-                        key={rating}
-                        onClick={() => setMinRating(minRating === rating ? 0 : rating)}
-                        className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1 ${minRating === rating
-                          ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                          }`}
-                      >
-                        <span>{rating}+</span>
-                        <svg
-                          className="w-3 h-3 text-yellow-500"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            {/* Results count - Mobile */}
+            <span className="text-xs text-gray-500 ml-auto pl-2">
+              {total} found
+            </span>
+          </div>
+        </div>
 
-                <div>
-                  <h3 className="font-semibold mb-3">Amenities</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {amenityOptions.slice(0, 6).map((amenity) => (
-                      <button
-                        key={amenity}
-                        onClick={() => toggleAmenity(amenity)}
-                        className={`px-2 py-1 rounded text-xs border ${selectedAmenities.includes(amenity)
-                          ? 'bg-primary/10 border-primary text-primary'
-                          : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                          }`}
+        {/* Expanded Filters Panel */}
+        {showFilters && (
+          <div className="container mx-auto px-4 pb-4 border-t animate-in slide-in-from-top-2">
+            <div className="pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div>
+                <h3 className="font-semibold mb-3">Price Range (₱)</h3>
+                <input
+                  type="range"
+                  min="0"
+                  max="2000"
+                  step="50"
+                  value={priceRange[1]}
+                  onChange={(e) => setPriceRange([0, Number(e.target.value)])}
+                  className="w-full accent-primary"
+                />
+                <div className="flex justify-between text-sm text-gray-600 mt-1">
+                  <span>₱0</span>
+                  <span>₱{priceRange[1]}</span>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Court Type</h3>
+                <div className="flex gap-2">
+                  {['indoor', 'outdoor'].map((type) => (
+                    <button
+                      key={type}
+                      onClick={() =>
+                        setCourtType(courtType === type ? null : (type as 'indoor' | 'outdoor'))
+                      }
+                      className={`px-3 py-1.5 rounded-full text-sm capitalize border ${courtType === type
+                        ? 'bg-primary/10 border-primary text-primary'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Rating</h3>
+                <div className="flex gap-2">
+                  {[4, 3, 2].map((rating) => (
+                    <button
+                      key={rating}
+                      onClick={() => setMinRating(minRating === rating ? 0 : rating)}
+                      className={`px-3 py-1.5 rounded-full text-sm border flex items-center gap-1 ${minRating === rating
+                        ? 'bg-yellow-50 border-yellow-400 text-yellow-700'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                    >
+                      <span>{rating}+</span>
+                      <svg
+                        className="w-3 h-3 text-yellow-500"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
                       >
-                        {amenity}
-                      </button>
-                    ))}
-                  </div>
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-3">Amenities</h3>
+                <div className="flex flex-wrap gap-2">
+                  {amenityOptions.slice(0, 6).map((amenity) => (
+                    <button
+                      key={amenity}
+                      onClick={() => toggleAmenity(amenity)}
+                      className={`px-2 py-1 rounded text-xs border ${selectedAmenities.includes(amenity)
+                        ? 'bg-primary/10 border-primary text-primary'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                    >
+                      {amenity}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
+      </header>
 
       <div className="container mx-auto px-4 py-8">
         {loading ? (

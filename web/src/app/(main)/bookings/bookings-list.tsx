@@ -97,12 +97,20 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
   }
 
   const getPaymentStatus = (booking: Booking) => {
-    // If booking status is 'confirmed' or 'paid', payment is complete
-    if (booking.status === 'confirmed' || booking.status === 'paid') {
+    // Check if fully paid
+    const isFullyPaid = booking.amount_paid >= booking.total_amount
+
+    // If booking is marked as 'paid' or is 'confirmed' with full payment
+    if (booking.status === 'paid' || (booking.status === 'confirmed' && isFullyPaid)) {
       return { label: 'Paid', color: 'green', needsPayment: false }
     }
 
-    // Check payment records
+    // If confirmed but not fully paid (e.g. Cash at Venue)
+    if (booking.status === 'confirmed' && !isFullyPaid) {
+      return { label: 'Pay at Venue', color: 'orange', needsPayment: false }
+    }
+
+    // Check payment records for digital attempts
     const payment = booking.payments?.[0]
     if (!payment) return { label: 'Payment Pending', color: 'yellow', needsPayment: true }
 
