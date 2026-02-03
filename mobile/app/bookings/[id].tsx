@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     Alert,
     ScrollView,
+    TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -18,7 +19,7 @@ import { supabase } from '@/lib/supabase';
 import QRCode from 'react-native-qrcode-svg';
 import { format } from 'date-fns';
 
-type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show' | 'pending_payment' | 'paid';
+type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show' | 'pending_payment' | 'paid' | 'refunded';
 
 interface Reservation {
     id: string;
@@ -44,9 +45,48 @@ export default function BookingDetailsScreen() {
     const [isLoading, setIsLoading] = useState(true);
     const [isCancelling, setIsCancelling] = useState(false);
 
+    // Refund State
+    const [refundStatus, setRefundStatus] = useState<any>(null); // To store existing refund status
+    const [showRefundModal, setShowRefundModal] = useState(false);
+    const [refundReason, setRefundReason] = useState('');
+    const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+
     useEffect(() => {
         fetchBookingDetails();
     }, [id]);
+
+    // Check for refund status when booking loads
+    useEffect(() => {
+        if (booking && (booking.status === 'paid' || booking.status === 'confirmed')) {
+            checkRefundStatus();
+        }
+    }, [booking]);
+
+    const checkRefundStatus = async () => {
+        try {
+            const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.254.163:3000';
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session?.access_token) return;
+
+            const response = await fetch(`${apiUrl}/api/mobile/get-refund-status?reservationId=${id}`, {
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`
+                }
+            });
+            const result = await response.json();
+            if (result.success && result.refunds && result.refunds.length > 0) {
+                // Find most recent meaningful status
+                const activeRefund = result.refunds.find((r: any) =>
+                    ['pending', 'processing', 'succeeded'].includes(r.status)
+                );
+                if (activeRefund) {
+                    setRefundStatus(activeRefund);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking refund status:', error);
+        }
+    };
 
     const fetchBookingDetails = async () => {
         try {
@@ -80,50 +120,114 @@ export default function BookingDetailsScreen() {
     const handleCancelReservation = async () => {
         if (!booking) return;
 
-        Alert.alert(
-            'Cancel Booking',
-            'Are you sure you want to cancel this booking? Refunds are subject to the venue policy.',
-            [
-                { text: 'No', style: 'cancel' },
-                {
-                    text: 'Yes, Cancel',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            setIsCancelling(true);
+        // If booking is unpaid or pending_payment, we can just cancel directly
+        const canDirectCancel = ['pending', 'pending_payment'].includes(booking.status);
 
-                            // Call API
-                            const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.254.163:3000';
-                            const { data: { session } } = await supabase.auth.getSession();
-
-                            if (!session?.access_token) throw new Error('Not authenticated');
-
-                            const response = await fetch(`${apiUrl}/api/mobile/cancel-reservation`, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${session.access_token}`
-                                },
-                                body: JSON.stringify({ reservationId: booking.id })
-                            });
-
-                            const result = await response.json();
-
-                            if (!response.ok || !result.success) {
-                                throw new Error(result.error || 'Failed to cancel');
-                            }
-
-                            Alert.alert('Success', 'Booking cancelled successfully');
-                            fetchBookingDetails(); // Refresh
-                        } catch (error: any) {
-                            Alert.alert('Error', error.message || 'Failed to cancel');
-                        } finally {
-                            setIsCancelling(false);
-                        }
+        if (canDirectCancel) {
+            Alert.alert(
+                'Cancel Booking',
+                'Are you sure you want to cancel this booking?',
+                [
+                    { text: 'No', style: 'cancel' },
+                    {
+                        text: 'Yes, Cancel',
+                        style: 'destructive',
+                        onPress: executeCancellation
                     }
-                }
-            ]
-        );
+                ]
+            );
+        } else {
+            // Paid booking - must request refund
+            // Check 24-hour policy
+            const startTime = new Date(booking.start_time);
+            const hoursUntilStart = (startTime.getTime() - Date.now()) / (1000 * 60 * 60);
+
+            if (hoursUntilStart < 24) {
+                Alert.alert('Cannot Refund', 'Refunds cannot be requested within 24 hours of the booking start time.');
+                return;
+            }
+
+            // Show refund modal
+            setRefundReason('');
+            setShowRefundModal(true);
+        }
+    };
+
+    const executeCancellation = async () => {
+        if (!booking) return;
+        try {
+            setIsCancelling(true);
+
+            // Call API
+            const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.254.163:3000';
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (!session?.access_token) throw new Error('Not authenticated');
+
+            const response = await fetch(`${apiUrl}/api/mobile/cancel-reservation`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({ reservationId: booking.id })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Failed to cancel');
+            }
+
+            Alert.alert('Success', 'Booking cancelled successfully');
+            fetchBookingDetails(); // Refresh
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to cancel');
+        } finally {
+            setIsCancelling(false);
+        }
+    };
+
+    const submitRefundRequest = async () => {
+        if (!refundReason.trim()) {
+            Alert.alert('Error', 'Please provide a reason for the refund');
+            return;
+        }
+
+        try {
+            setIsSubmittingRefund(true);
+            const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.254.163:3000';
+            const { data: { session } } = await supabase.auth.getSession();
+
+            if (!session?.access_token) throw new Error('Not authenticated');
+
+            const response = await fetch(`${apiUrl}/api/mobile/request-refund`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({
+                    reservationId: booking?.id,
+                    reason: refundReason.trim()
+                })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Failed to request refund');
+            }
+
+            setShowRefundModal(false);
+            Alert.alert('Success', 'Refund request submitted successfully. We will notify you once it is processed.');
+            checkRefundStatus(); // Refresh status
+            fetchBookingDetails();
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to submit refund request');
+        } finally {
+            setIsSubmittingRefund(false);
+        }
     };
 
     if (isLoading || !booking) {
@@ -138,15 +242,27 @@ export default function BookingDetailsScreen() {
 
     const startTime = new Date(booking.start_time);
     const endTime = new Date(booking.end_time);
-    const isUpcoming = startTime > new Date() && booking.status !== 'cancelled';
-    const canCancel = isUpcoming && booking.status !== 'cancelled' && booking.status !== 'completed';
+    const isUpcoming = startTime > new Date() && booking.status !== 'cancelled' && booking.status !== 'refunded';
+    const canCancel = isUpcoming && booking.status !== 'completed';
+
+    // Check if within 24 hours for paid bookings label
+    const hoursUntilStart = (startTime.getTime() - Date.now()) / (1000 * 60 * 60);
+    const isWithin24Hours = hoursUntilStart < 24;
+    const isPaid = ['paid', 'confirmed'].includes(booking.status) && booking.total_amount > 0;
+
+    // Determine button label
+    let buttonLabel = 'Cancel Booking';
+    if (isPaid) {
+        buttonLabel = isWithin24Hours ? 'Cannot Refund (Within 24h)' : 'Request Refund';
+    }
+    const isButtonDisabled = isCancelling || (isPaid && isWithin24Hours);
 
     // Status colors
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'confirmed': return Colors.dark.success;
-            case 'pending': return Colors.dark.warning;
-            case 'cancelled': return Colors.dark.error;
+            case 'confirmed': case 'paid': return Colors.dark.success;
+            case 'pending': case 'pending_payment': return Colors.dark.warning;
+            case 'cancelled': case 'refunded': return Colors.dark.error;
             default: return Colors.dark.textSecondary;
         }
     };
@@ -163,8 +279,8 @@ export default function BookingDetailsScreen() {
             </View>
 
             <ScrollView style={styles.content}>
-                {/* QR Code Section (Only for valid bookings) */}
-                {booking.status !== 'cancelled' && (
+                {/* QR Code Section (Only for valid active bookings) */}
+                {booking.status !== 'cancelled' && booking.status !== 'refunded' && (
                     <View style={styles.qrContainer}>
                         <Card variant="default" style={styles.qrCard}>
                             <QRCode
@@ -178,10 +294,20 @@ export default function BookingDetailsScreen() {
                     </View>
                 )}
 
+                {/* Refund Status Banner */}
+                {refundStatus && (
+                    <View style={[styles.refundBanner, { backgroundColor: Colors.dark.warning + '20', borderColor: Colors.dark.warning }]}>
+                        <ActivityIndicator size="small" color={Colors.dark.warning} />
+                        <Text style={{ color: Colors.dark.warning, fontWeight: '600' }}>
+                            Refund {refundStatus.status === 'succeeded' ? 'Completed' : 'Processing'}
+                        </Text>
+                    </View>
+                )}
+
                 {/* Status Banner */}
                 <View style={[styles.statusBanner, { backgroundColor: getStatusColor(booking.status) + '15' }]}>
                     <Text style={[styles.statusText, { color: getStatusColor(booking.status) }]}>
-                        {booking.status.toUpperCase()}
+                        {booking.status.toUpperCase().replace('_', ' ')}
                     </Text>
                 </View>
 
@@ -212,20 +338,58 @@ export default function BookingDetailsScreen() {
                 </Card>
 
                 {/* Actions */}
-                {canCancel && (
+                {canCancel && !refundStatus && (
                     <Button
-                        variant="outline"
-                        style={styles.cancelButton}
-                        textStyle={{ color: Colors.dark.error }}
+                        variant="secondary"
+                        style={[styles.cancelButton, isWithin24Hours && isPaid && { opacity: 0.5 }]}
                         onPress={handleCancelReservation}
-                        disabled={isCancelling}
+                        disabled={isButtonDisabled}
                     >
-                        {isCancelling ? 'Processing...' : 'Request Refund / Cancel'}
+                        {isCancelling ? 'Processing...' : buttonLabel}
                     </Button>
                 )}
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            {/* Refund Reason Modal */}
+            {showRefundModal && (
+                <View style={[StyleSheet.absoluteFill, styles.modalOverlay]}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Request Refund</Text>
+                        <Text style={styles.modalText}>
+                            Please provide a reason for your refund request.
+                            Refunds typically take 5-10 business days to process.
+                        </Text>
+
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Reason for refund..."
+                            placeholderTextColor={Colors.dark.textSecondary}
+                            multiline
+                            value={refundReason}
+                            onChangeText={setRefundReason}
+                        />
+
+                        <View style={styles.modalActions}>
+                            <Button
+                                variant="secondary"
+                                style={styles.modalButton}
+                                onPress={() => setShowRefundModal(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                style={[styles.modalButton, { backgroundColor: Colors.dark.primary }]}
+                                onPress={submitRefundRequest}
+                                disabled={isSubmittingRefund || !refundReason.trim()}
+                            >
+                                {isSubmittingRefund ? 'Submitting...' : 'Submit Request'}
+                            </Button>
+                        </View>
+                    </View>
+                </View>
+            )}
         </SafeAreaView>
     );
 }
@@ -293,6 +457,16 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         letterSpacing: 1,
     },
+    refundBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: Spacing.sm,
+        padding: Spacing.md,
+        borderRadius: Radius.md,
+        marginBottom: Spacing.lg,
+        borderWidth: 1,
+    },
     detailsCard: {
         gap: Spacing.md,
         marginBottom: Spacing.xl,
@@ -331,5 +505,46 @@ const styles = StyleSheet.create({
     cancelButton: {
         borderColor: Colors.dark.error,
         marginTop: Spacing.md,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        padding: Spacing.lg,
+    },
+    modalContent: {
+        backgroundColor: Colors.dark.surface,
+        borderRadius: Radius.lg,
+        padding: Spacing.xl,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+    },
+    modalTitle: {
+        ...Typography.h3,
+        color: Colors.dark.text,
+        marginBottom: Spacing.md,
+    },
+    modalText: {
+        ...Typography.body,
+        color: Colors.dark.textSecondary,
+        marginBottom: Spacing.lg,
+    },
+    input: {
+        backgroundColor: Colors.dark.background,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        borderRadius: Radius.md,
+        padding: Spacing.md,
+        color: Colors.dark.text,
+        minHeight: 100,
+        textAlignVertical: 'top',
+        marginBottom: Spacing.lg,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        gap: Spacing.md,
+    },
+    modalButton: {
+        flex: 1,
     }
 });
