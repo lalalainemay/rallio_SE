@@ -32,11 +32,11 @@ export function RefundRequestButton({
 
   // Only show refund button for paid/confirmed reservations with amount paid
   const isPaidOrConfirmed = ['paid', 'confirmed'].includes(status) && amountPaid > 0
-  
+
   // Check 24-hour policy: cannot refund within 24 hours of booking start time
   const hoursUntilStart = (new Date(startTime).getTime() - Date.now()) / (1000 * 60 * 60)
   const isWithin24Hours = hoursUntilStart < 24
-  
+
   const canRequestRefund = isPaidOrConfirmed && !isWithin24Hours
 
   // Don't render anything if not paid/confirmed or no amount paid
@@ -120,7 +120,7 @@ export function RefundRequestButton({
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
         disabled={!canRequestRefund}
-        className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700"
+        className="w-full text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700"
       >
         <Undo2 className="w-4 h-4 mr-2" />
         Request Refund
