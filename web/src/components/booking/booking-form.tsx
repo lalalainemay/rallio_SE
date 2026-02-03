@@ -267,8 +267,9 @@ export function BookingForm({ venue, courts, selectedCourtId, userId }: BookingF
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="1">One-time booking</SelectItem>
+                  <SelectItem value="2">Repeat for 2 weeks</SelectItem>
+                  <SelectItem value="3">Repeat for 3 weeks</SelectItem>
                   <SelectItem value="4">Repeat for 4 weeks</SelectItem>
-                  <SelectItem value="8">Repeat for 8 weeks</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-blue-600 mt-1">

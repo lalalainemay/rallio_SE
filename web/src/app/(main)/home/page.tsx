@@ -53,8 +53,22 @@ export default async function HomePage() {
     .eq('courts.is_active', true)
     .limit(3)
 
+  // Get player profile for skill level etc.
+  const { data: playerProfile } = await supabase
+    .from('players')
+    .select('skill_level, birth_date')
+    .eq('user_id', user?.id)
+    .single()
+
   const firstName = userProfile?.display_name?.split(' ')[0] || 'Player'
-  const profileCompleted = userProfile?.profile_completed ?? false
+
+  // Logic: Check if critical fields are actually filled.
+  // We ignore profile_completed flag for the banner display because users might have skipped it.
+  // We want to remind them if they are missing critical info.
+  const isProfileTrulyComplete =
+    !!userProfile?.display_name &&
+    !!playerProfile?.skill_level &&
+    !!playerProfile?.birth_date
 
   return (
     <div className="min-h-screen bg-white">
@@ -89,7 +103,7 @@ export default async function HomePage() {
       {/* Main Content */}
       <div className="p-6">
         {/* Profile Completion Reminder */}
-        {!profileCompleted && <ProfileCompletionBanner />}
+        {!isProfileTrulyComplete && <ProfileCompletionBanner />}
 
         {/* Quick Actions - Large Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

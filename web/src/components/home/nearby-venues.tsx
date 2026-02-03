@@ -100,14 +100,25 @@ export function NearbyVenues() {
             d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
           />
         </svg>
-        <h3 className="font-medium text-gray-900 mb-1">Location Access Required</h3>
-        <p className="text-sm text-gray-500 mb-3">Enable location access to see courts near you</p>
-        <Link
-          href="/courts"
-          className="inline-block text-sm font-medium text-primary hover:text-primary/80"
-        >
-          Browse All Courts
-        </Link>
+        <h3 className="font-medium text-gray-900 mb-1">Make sure your location is enabled</h3>
+        <p className="text-sm text-gray-500 mb-3">Enable location permission in your browser or device settings to see courts near you.</p>
+        <div className="flex gap-2 justify-center">
+          <button
+            onClick={() => {
+              setLocationDenied(false);
+              window.location.reload();
+            }}
+            className="inline-block px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Allow Location
+          </button>
+          <Link
+            href="/courts"
+            className="inline-block px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Browse All Courts
+          </Link>
+        </div>
       </div>
     );
   }
