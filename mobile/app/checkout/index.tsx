@@ -86,105 +86,68 @@ export default function CheckoutScreen() {
         setStep('processing');
 
         try {
-            // Create ISO timestamps for the reservation
-            const bookingDate = new Date(bookingData.date);
-            const [startHour] = bookingData.startTime.split(':').map(Number);
-            const [endHour] = bookingData.endTime.split(':').map(Number);
-            const recurrenceWeeks = bookingData.recurrenceWeeks || 1;
+            // Get session
+            const { data: { session } } = await supabase.auth.getSession();
 
-            // Safe UUID generator for React Native
-            const generateUUID = () => {
-                return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-                    const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                    return v.toString(16);
-                });
+            if (!session?.access_token) {
+                throw new Error('User not authenticated (No session)');
+            }
+
+            const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.254.163:3000';
+
+            // Prepare payload for Server Action Wrapper
+            const reservationPayload = {
+                courtId: bookingData.courtId,
+                startTimeISO: `${format(new Date(bookingData.date), 'yyyy-MM-dd')}T${bookingData.startTime}:00`,
+                endTimeISO: `${format(new Date(bookingData.date), 'yyyy-MM-dd')}T${bookingData.endTime}:00`, // Duration logic handled by server if needed, but passing endISO is clearer
+                totalAmount: total, // GRAND TOTAL
+                numPlayers: bookingData.numPlayers,
+                paymentType: 'full',
+                paymentMethod: paymentMethod, // 'cash' or 'e-wallet'
+                notes: bookingData.notes,
+                recurrenceWeeks: bookingData.recurrenceWeeks,
+                selectedDays: bookingData.selectedDays
             };
 
-            const recurrenceGroupId = recurrenceWeeks > 1 ? generateUUID() : null;
+            console.log('Mobile Checkout: Creating reservation via API...', reservationPayload);
 
-            const reservationsToInsert = [];
+            const createResResponse = await fetch(`${apiUrl}/api/mobile/create-reservation`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify(reservationPayload)
+            });
 
-            for (let i = 0; i < recurrenceWeeks; i++) {
-                // Calculate date for this iteration
-                const currentDate = new Date(bookingDate);
-                currentDate.setDate(currentDate.getDate() + (i * 7));
+            const createResResult = await createResResponse.json();
 
-                const startTime = new Date(currentDate);
-                startTime.setHours(startHour, 0, 0, 0);
-
-                const endTime = new Date(currentDate);
-                endTime.setHours(endHour, 0, 0, 0);
-
-                // For PayMongo/Payment: The Total Amount is usually for the WHOLE series. 
-                // But we store 'total_amount' per reservation? 
-                // Web implementation stores passed `totalAmount` PER RECORD.
-                // Wait, Web implementation: "total_amount: data.totalAmount, // Price for this specific instance"
-                // So mobile should calculate per-instance price.
-                // The `total` variable from `getTotalAmount()` is the GRAND TOTAL (includes all weeks).
-                // We need per-session total.
-
-                const splitTotal = total / recurrenceWeeks;
-
-                reservationsToInsert.push({
-                    court_id: bookingData.courtId,
-                    user_id: user?.id,
-                    start_time: startTime.toISOString(),
-                    end_time: endTime.toISOString(),
-                    total_amount: splitTotal, // Store per-session price
-                    num_players: bookingData.numPlayers,
-                    status: paymentMethod === 'cash' ? 'pending' : 'pending_payment', // Use pending_payment for e-wallet
-                    payment_type: 'full',
-                    notes: bookingData.notes ? (recurrenceWeeks > 1 ? `${bookingData.notes} (Week ${i + 1})` : bookingData.notes) : null,
-                    recurrence_group_id: recurrenceGroupId,
-                    metadata: {
-                        payment_method: paymentMethod,
-                        booking_origin: 'mobile'
-                    }
-                });
+            if (!createResResponse.ok || !createResResult.success) {
+                console.error('Mobile Checkout: API Error:', createResResult);
+                throw new Error(createResResult.error || 'Failed to create reservation');
             }
 
-            // Batch insert
-            // Add logs for debugging
-            console.log('Mobile Checkout: Creating reservation in Supabase...');
-            const { data: reservations, error: reservationError } = await supabase
-                .from('reservations')
-                .insert(reservationsToInsert)
-                .select();
+            console.log('Mobile Checkout: Reservation created:', createResResult.reservationId);
 
-            if (reservationError) {
-                console.error('Mobile Checkout: Reservation insert error:', reservationError);
-                throw reservationError;
-            }
+            // Set Reference
+            const bookingRef = createResResult.bookingRef || `RLL-${Date.now().toString().slice(-8)}`;
+            const primaryReservationId = createResResult.reservationId;
+            const recurrenceGroupId = createResResult.recurrenceGroupId;
 
-            console.log('Mobile Checkout: Reservation created:', reservations?.[0]?.id);
-
-            // For single booking reference, we use the first reservation ID
-            const primaryReservationId = reservations[0].id;
-
-            // Generate booking reference
-            const bookingRef = `RLL-${Date.now().toString().slice(-8)}`;
             setBookingReference(bookingRef, primaryReservationId);
 
-
+            // Handle E-Wallet Payment
             if (paymentMethod === 'e-wallet') {
-                // Create PayMongo checkout using Next.js API
-                // We use process.env.EXPO_PUBLIC_API_URL or fallback to localhost
-                // NOTE: For Expo Go on Android, localhost is 10.0.2.2. On iOS, it's localhost.
-                // UPDATED: Using explicit local IP for physical device testing
-                const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.254.163:3000';
-                console.log('Mobile Checkout: Using API URL:', apiUrl);
+                console.log('Mobile Checkout: Initiating E-Wallet Payment...');
 
-                const { data: { session } } = await supabase.auth.getSession();
+                // Re-use the SAME API endpoint or the specific payment endpoint?
+                // The existing code called an endpoint `/api/mobile/create-checkout`.
+                // We should keep using that if it works OR update `createReservationAction` to return a payment link.
+                // `createReservationAction` does NOT return a payment link currently.
+                // So we need to call the payment endpoint separately.
 
-                if (!session?.access_token) {
-                    console.error('Mobile Checkout: No authorized session found!');
-                    throw new Error('User not authenticated (No session)');
-                }
-
-                console.log('Mobile Checkout: Has session?', !!session);
-
-                console.log('Mobile Checkout: Fetching checkout URL...');
-                const response = await fetch(`${apiUrl}/api/mobile/create-checkout`, {
+                // EXISTING FLOW maintained:
+                const paymentResponse = await fetch(`${apiUrl}/api/mobile/create-checkout`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -193,36 +156,23 @@ export default function CheckoutScreen() {
                     body: JSON.stringify({
                         reservationId: primaryReservationId,
                         amount: total, // Grand total
-                        description: `Court booking at ${bookingData.venueName} (${recurrenceWeeks > 1 ? `${recurrenceWeeks} Weeks` : 'Single'})`,
+                        description: `Court booking at ${bookingData.venueName} (${bookingData.recurrenceWeeks && bookingData.recurrenceWeeks > 1 ? `${bookingData.recurrenceWeeks} Weeks` : 'Single'})`,
                         successUrl: 'rallio://checkout/success',
                         cancelUrl: 'rallio://checkout/cancel',
                         recurrenceGroupId: recurrenceGroupId,
                     })
                 });
 
-                console.log('Mobile Checkout: Fetch response status:', response.status);
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error('Mobile Checkout: API Error:', errorData);
+                if (!paymentResponse.ok) {
+                    const errorData = await paymentResponse.json();
                     throw new Error(errorData.error || 'Payment initialization failed');
                 }
 
-                const payment = await response.json();
-                console.log('Mobile Checkout: Payment data received:', payment);
+                const payment = await paymentResponse.json();
 
                 if (payment?.checkoutUrl) {
-                    // Open PayMongo checkout in browser
                     console.log('Mobile Checkout: Opening URL:', payment.checkoutUrl);
-                    const supported = await Linking.canOpenURL(payment.checkoutUrl);
-                    if (supported) {
-                        await Linking.openURL(payment.checkoutUrl);
-                    } else {
-                        console.error("Mobile Checkout: Can't open URL:", payment.checkoutUrl);
-                        // Fallback or error?
-                        // Try opening anyway as canOpenURL sometimes returns false on Android for some schemes
-                        await Linking.openURL(payment.checkoutUrl);
-                    }
+                    await Linking.openURL(payment.checkoutUrl);
                 } else {
                     throw new Error('No checkout URL returned');
                 }

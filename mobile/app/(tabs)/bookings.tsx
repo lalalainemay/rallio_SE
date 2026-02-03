@@ -184,8 +184,7 @@ export default function BookingsScreen() {
     }, [fetchBookings]);
 
     const handleBookingPress = (bookingId: string) => {
-        // TODO: Navigate to booking details
-        console.log('Booking pressed:', bookingId);
+        router.push(`/bookings/${bookingId}`); // Navigate to the new details screen
     };
 
     // Filter bookings by tab

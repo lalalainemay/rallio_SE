@@ -77,6 +77,7 @@ export default function BookingScreen() {
     const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
     const [recurrenceWeeks, setRecurrenceWeeks] = useState(1);
+    const [selectedDays, setSelectedDays] = useState<number[]>([]);
     const [isValidatingRecurrence, setIsValidatingRecurrence] = useState(false);
 
     const { setBookingData, setDiscount } = useCheckoutStore();
@@ -168,6 +169,13 @@ export default function BookingScreen() {
             loadVenueData();
         }
     }, [id]);
+
+    // Update selected days when date changes
+    useEffect(() => {
+        if (selectedDate) {
+            setSelectedDays([selectedDate.getDay()]);
+        }
+    }, [selectedDate]);
 
     // Fetch Time Slots when Court or Date Changes
     useEffect(() => {
@@ -271,70 +279,57 @@ export default function BookingScreen() {
             }
         }
 
-        // RECURRENCE VALIDATION
-        if (recurrenceWeeks > 1) {
-            setIsValidatingRecurrence(true);
-            try {
-                // Loop through future weeks
-                for (let i = 1; i < recurrenceWeeks; i++) {
-                    const nextDate = addDays(selectedDate, i * 7);
-                    const nextDateStr = format(nextDate, 'yyyy-MM-dd');
-                    const [startH] = selectedTime.split(':').map(Number);
-                    const [endH] = finalEndTime.split(':').map(Number);
+        // RECURRENCE & CONFLICT VALIDATION (Single or Multi-Day)
+        setIsValidatingRecurrence(true);
+        try {
+            // Use the centralized API validation
+            const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.254.163:3000';
+            const dateStr = format(selectedDate, 'yyyy-MM-dd');
+            const startISO = `${dateStr}T${selectedTime}:00`;
+            // Calculate end ISO properly for the validation check
+            // duration is in hours.
+            const [startH] = selectedTime.split(':').map(Number);
+            const endH = startH + duration;
+            // Handle endH > 23 if needed, but for simple validation:
+            const endISO = `${dateStr}T${endH.toString().padStart(2, '0')}:00:00`;
+            // Note: date-fns might be safer for date math but this matches existing simple logic
 
-                    // Check availability for this date & time range
-                    // We need to check if there are ANY overlapping reservations
-                    // Time range: startH:00 to endH:00
+            // Prepare payload
+            const validationPayload = {
+                courtId: selectedCourtId,
+                startTimeISO: startISO,
+                endTimeISO: endISO, // We just need duration diff essentially
+                recurrenceWeeks,
+                selectedDays
+            };
 
-                    const startISO = `${nextDateStr}T${selectedTime}:00`;
-                    // Note: endH could be 23 or 24 or 00? Logic in getEndTimeStr returns formatted hour.
-                    // If hour is 24, dateStr needs to be next day? 
-                    // To keep simple, let's assume same day logic for now or stick to checking overlap by hours
+            console.log('Validating availability...', validationPayload);
 
-                    const { data: conflicts } = await supabase
-                        .from('reservations')
-                        .select('id')
-                        .eq('court_id', selectedCourtId)
-                        .in('status', ['pending', 'confirmed', 'pending_payment', 'paid'])
-                        .or(`and(start_time.lte.${nextDateStr}T${selectedTime}:00,end_time.gt.${nextDateStr}T${selectedTime}:00),and(start_time.lt.${nextDateStr}T${finalEndTime}:00,end_time.gte.${nextDateStr}T${finalEndTime}:00)`);
-                    // This OR syntax is tricky. Better to use overlap logic:
-                    // (StartA <= EndB) and (EndA >= StartB)
+            const response = await fetch(`${apiUrl}/api/mobile/validate-booking`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(validationPayload)
+            });
 
-                    // Let's use a simpler query: get all reservations for that day and check overlap in code
-                    const { data: dailyReservations } = await supabase
-                        .from('reservations')
-                        .select('start_time, end_time')
-                        .eq('court_id', selectedCourtId)
-                        .gte('start_time', `${nextDateStr}T00:00:00`)
-                        .lte('start_time', `${nextDateStr}T23:59:59`)
-                        .in('status', ['pending', 'confirmed', 'pending_payment', 'paid']);
+            if (!response.ok) {
+                throw new Error('Validation API failed');
+            }
 
-                    const isBooked = dailyReservations?.some((res) => {
-                        const resStart = new Date(res.start_time).getHours();
-                        const resEnd = new Date(res.end_time).getHours();
-                        // Overlap check:
-                        // selected start < resEnd AND selected end > resStart
-                        // Let's use integer hours
-                        const selStart = startH;
-                        const selEnd = endH; // e.g., 20 to 21
+            const result = await response.json();
 
-                        return selStart < resEnd && selEnd > resStart;
-                    });
-
-                    if (isBooked) {
-                        Alert.alert('Unavailable', `Week ${i + 1} (${format(nextDate, 'MMM d')}) is already booked. Please try a different time or date.`);
-                        setIsValidatingRecurrence(false);
-                        return;
-                    }
-                }
-            } catch (err) {
-                console.error('Validation error', err);
-                Alert.alert('Error', 'Failed to validate recurring dates.');
+            if (!result.available) {
+                Alert.alert('Unavailable', result.error || 'Selected time is not available.');
                 setIsValidatingRecurrence(false);
                 return;
             }
+
+        } catch (err) {
+            console.error('Validation error', err);
+            Alert.alert('Error', 'Failed to validate availability. Please check your connection.');
             setIsValidatingRecurrence(false);
+            return;
         }
+        setIsValidatingRecurrence(false);
 
         // Pass discount info separately
         // Multiply discount by weeks if applicable
@@ -359,6 +354,7 @@ export default function BookingScreen() {
             numPlayers: numPlayers,
             notes: notes.trim() || undefined,
             recurrenceWeeks: recurrenceWeeks,
+            selectedDays: selectedDays, // Add this
         });
 
         // Navigate to checkout

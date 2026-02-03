@@ -19,6 +19,7 @@ export interface BookingData {
     numPlayers: number;
     notes?: string;
     recurrenceWeeks?: number; // 1 = single, 4 = 4 weeks, etc.
+    selectedDays?: number[]; // [0, 2, 4] for Sun, Tue, Thu
 }
 
 interface CheckoutState {
@@ -108,6 +109,8 @@ export const useCheckoutStore = create<CheckoutState>()(
                 if (!bookingData) return 0;
 
                 const recurrenceWeeks = bookingData.recurrenceWeeks || 1;
+                const sessionsPerWeek = bookingData.selectedDays?.length || 1;
+
                 // Calculate base price first
                 // NOTE: Using duration from bookingData directly as it's pre-calculated on mobile
                 const baseRate = bookingData.hourlyRate * bookingData.duration;
@@ -117,7 +120,7 @@ export const useCheckoutStore = create<CheckoutState>()(
                 // Assuming discount passed is per-session still, we might need adjustments.
                 // BUT per current `book.tsx`, discount is calculated once.
 
-                const totalBase = baseRate * recurrenceWeeks;
+                const totalBase = baseRate * recurrenceWeeks * sessionsPerWeek;
 
                 // If discount is set once, we might want to multiply it too if it's per session.
                 // However, let's assume discountStore holds the TOTAL discount.
