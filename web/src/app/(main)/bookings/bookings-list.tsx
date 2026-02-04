@@ -79,18 +79,52 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
     }
   }
 
-  const handleCancelBooking = async (bookingId: string) => {
-    if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) {
+  const handleCancelBooking = async (booking: Booking) => {
+    const isPaid = ['paid', 'confirmed'].includes(booking.status) && booking.amount_paid > 0
+    const hoursUntilStart = (new Date(booking.start_time).getTime() - Date.now()) / (1000 * 60 * 60)
+    const isWithin24Hours = hoursUntilStart < 24
+
+    // Different confirmation messages based on status
+    let confirmMessage = 'Are you sure you want to cancel this booking?'
+    if (isPaid && !isWithin24Hours) {
+      confirmMessage = 'This booking is paid. Cancelling will automatically request a refund. Continue?'
+    } else if (isPaid && isWithin24Hours) {
+      confirmMessage = 'Warning: Refunds are not available within 24 hours of booking time. Cancel anyway?'
+    }
+
+    if (!confirm(confirmMessage)) {
       return
     }
 
-    setCancellingId(bookingId)
-    const result = await cancelReservationAction(bookingId)
+    setCancellingId(booking.id)
 
-    if (result.success) {
-      setBookings((prev) => prev.filter((booking) => booking.id !== bookingId))
-    } else {
-      alert(result.error || 'Failed to cancel booking')
+    try {
+      // If paid and eligible for refund, request refund first
+      if (isPaid && !isWithin24Hours) {
+        const { requestRefundAction } = await import('@/app/actions/refund-actions')
+        const refundResult = await requestRefundAction({
+          reservationId: booking.id,
+          reason: 'Cancelled by user',
+          reasonCode: 'requested_by_customer'
+        })
+
+        if (!refundResult.success) {
+          // Still cancel even if refund fails (manual refund may be needed)
+          console.warn('Refund request failed:', refundResult.error)
+        }
+      }
+
+      // Cancel the booking
+      const result = await cancelReservationAction(booking.id)
+
+      if (result.success) {
+        setBookings((prev) => prev.filter((b) => b.id !== booking.id))
+      } else {
+        alert(result.error || 'Failed to cancel booking')
+      }
+    } catch (error) {
+      console.error('Error cancelling booking:', error)
+      alert('Failed to cancel booking. Please try again.')
     }
 
     setCancellingId(null)
@@ -464,7 +498,7 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleCancelBooking(booking.id)}
+                          onClick={() => handleCancelBooking(booking)}
                           disabled={cancellingId === booking.id}
                           className="flex-1 h-10 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-colors"
                         >

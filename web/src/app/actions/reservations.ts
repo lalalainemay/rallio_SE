@@ -549,7 +549,10 @@ export async function cancelReservationAction(reservationId: string) {
 
   const { error } = await supabase
     .from('reservations')
-    .update({ status: 'cancelled' })
+    .update({
+      status: 'cancelled',
+      updated_at: new Date().toISOString()
+    })
     .eq('id', reservationId)
 
   if (error) {
