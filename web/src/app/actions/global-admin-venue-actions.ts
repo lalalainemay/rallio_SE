@@ -675,6 +675,7 @@ export async function toggleCourtActive(courtId: string, isActive: boolean) {
   return { success: true, message: `Court ${isActive ? 'activated' : 'deactivated'} successfully` }
 }
 
+
 /**
  * Delete court
  */

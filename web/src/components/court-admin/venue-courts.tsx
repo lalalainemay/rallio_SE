@@ -23,6 +23,7 @@ interface Court {
   capacity?: number
   hourly_rate: number
   is_active: boolean
+  is_verified: boolean
   amenities?: Array<{ amenity_id: string }>
 }
 
@@ -227,22 +228,40 @@ export function VenueCourts({ venueId, onCourtChange }: VenueCourtsProps) {
                   <h3 className="font-semibold text-gray-900 text-lg mb-1">{court.name}</h3>
                   <p className="text-sm text-gray-500 capitalize">{court.court_type} Court</p>
                 </div>
-                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${court.is_active
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-700'
-                  }`}>
-                  {court.is_active ? (
-                    <>
-                      <CheckCircle className="w-3 h-3" />
-                      Active
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-3 h-3" />
-                      Inactive
-                    </>
-                  )}
-                </span>
+                <div className="flex gap-2">
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${court.is_verified
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-yellow-100 text-yellow-700'
+                    }`}>
+                    {court.is_verified ? (
+                      <>
+                        <CheckCircle className="w-3 h-3" />
+                        Verified
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-3 h-3" />
+                        Pending
+                      </>
+                    )}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${court.is_active
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-gray-100 text-gray-700'
+                    }`}>
+                    {court.is_active ? (
+                      <>
+                        <CheckCircle className="w-3 h-3" />
+                        Active
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-3 h-3" />
+                        Inactive
+                      </>
+                    )}
+                  </span>
+                </div>
               </div>
 
               <div className="space-y-2 mb-4">

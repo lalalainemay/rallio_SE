@@ -695,6 +695,7 @@ export async function createQueueSession(data: {
   costPerGame: number
   isPublic: boolean
   recurrenceWeeks?: number
+  selectedDays?: number[]
 }): Promise<{
   success: boolean
   session?: QueueSessionData
@@ -794,16 +795,52 @@ export async function createQueueSession(data: {
     const approvalStatus = requiresApproval ? 'pending' : 'approved'
 
     // --- LOOP START ---
-    // We will attempt to create ALL sessions. If one fails, we stop.
-    // Ideally we should pre-validate all dates first.
+    // Generate all target dates first
+    const targetDates: Date[] = []
+    const startObj = new Date(data.startTime)
+    // Normalize to start of day for safer comparisons if needed, 
+    // but here we need exact times.
+
+    // Determine the "anchored" days
+    // If selectedDays is provided, use it. Otherwise default to the start day.
+    const daysToBook = data.selectedDays && data.selectedDays.length > 0
+      ? data.selectedDays
+      : [startObj.getDay()]
+
+    // Get the Sunday of the start week (assuming week starts on Sunday)
+    const startWeekSunday = new Date(startObj)
+    startWeekSunday.setDate(startObj.getDate() - startObj.getDay())
+    startWeekSunday.setHours(startObj.getHours(), startObj.getMinutes(), 0, 0)
+
+    for (let i = 0; i < recurrenceWeeks; i++) {
+      const weekBase = new Date(startWeekSunday)
+      weekBase.setDate(weekBase.getDate() + (i * 7)) // Move to the ith week
+
+      for (const dayIndex of daysToBook) {
+        const targetStart = new Date(weekBase)
+        targetStart.setDate(targetStart.getDate() + dayIndex)
+
+        // If it's the first week, ensure we don't book in the past relative to the chosen start date
+        // (Unless it's the exact same day/time, which is fine)
+        // But if user picks Wed, and adds Mon, Mon is in the past of that week.
+        // We typically skip past days in the first week.
+        if (i === 0 && targetStart < startObj) {
+          continue
+        }
+
+        targetDates.push(targetStart)
+      }
+    }
+
+    if (targetDates.length === 0) {
+      return { success: false, error: 'No valid future dates selected.' }
+    }
+
 
     // Pre-validation Loop
-    for (let i = 0; i < recurrenceWeeks; i++) {
-      const sessionStart = new Date(data.startTime)
-      sessionStart.setDate(sessionStart.getDate() + (i * 7))
-
-      const sessionEnd = new Date(data.endTime)
-      sessionEnd.setDate(sessionEnd.getDate() + (i * 7))
+    for (const sessionStart of targetDates) {
+      const sessionEnd = new Date(sessionStart)
+      sessionEnd.setTime(sessionStart.getTime() + (new Date(data.endTime).getTime() - new Date(data.startTime).getTime()))
 
       // Validate against venue hours
       const openingHours = venue?.opening_hours as Record<string, { open: string; close: string }> | null
@@ -813,11 +850,8 @@ export async function createQueueSession(data: {
         const dayHours = openingHours[dayOfWeek]
 
         if (!dayHours) {
-          return { success: false, error: `Venue is closed on ${dayOfWeek} (Week ${i + 1})` }
+          return { success: false, error: `Venue is closed on ${dayOfWeek} (${sessionStart.toLocaleDateString()})` }
         }
-
-        // Time checks (simplified for brevity, reused logic)
-        // ... (Full implementation of open/close checks required if stricter validation needed here)
       }
 
       // Check conflicts
@@ -830,17 +864,14 @@ export async function createQueueSession(data: {
         .gt('end_time', sessionStart.toISOString())
 
       if (conflicts && conflicts.length > 0) {
-        return { success: false, error: `Conflict detected for week ${i + 1} (${sessionStart.toLocaleDateString()})` }
+        return { success: false, error: `Conflict detected for ${sessionStart.toLocaleDateString()} at ${sessionStart.toLocaleTimeString()}` }
       }
     }
 
     // Creation Loop
-    for (let i = 0; i < recurrenceWeeks; i++) {
-      const sessionStart = new Date(data.startTime)
-      sessionStart.setDate(sessionStart.getDate() + (i * 7))
-
-      const sessionEnd = new Date(data.endTime)
-      sessionEnd.setDate(sessionEnd.getDate() + (i * 7))
+    for (const sessionStart of targetDates) {
+      const sessionEnd = new Date(sessionStart)
+      sessionEnd.setTime(sessionStart.getTime() + (new Date(data.endTime).getTime() - new Date(data.startTime).getTime()))
 
       // Create Reservation
       const { data: reservation, error: reservationError } = await supabase
@@ -861,15 +892,14 @@ export async function createQueueSession(data: {
             is_queue_session_reservation: true,
             recurrence_group_id: recurrenceGroupId
           },
-          notes: `Queue Session (${data.mode}) - Week ${i + 1}`,
+          notes: `Queue Session (${data.mode}) - ${sessionStart.toLocaleDateString()}`,
         })
         .select('id')
         .single()
 
       if (reservationError || !reservation) {
         console.error('[createQueueSession] ❌ Failed to create reservation:', reservationError)
-        return { success: false, error: `Failed to create reservation for week ${i + 1}` }
-        // Note: Previous successes are NOT rolled back here.
+        return { success: false, error: `Failed to create reservation for ${sessionStart.toLocaleDateString()}` }
       }
 
       // Create Queue Session

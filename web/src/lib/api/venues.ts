@@ -210,6 +210,7 @@ export async function getVenues(filters: VenueFilters = {}): Promise<{
         .eq('is_active', true)
         .eq('is_verified', true)
         .eq('courts.is_active', true)
+        .eq('courts.is_verified', true)
 
       // Apply Filters
       if (searchQuery) {
@@ -320,6 +321,7 @@ export async function getVenues(filters: VenueFilters = {}): Promise<{
       .eq('is_active', true)
       .eq('is_verified', true) // Only show verified/approved venues in public listings
       .eq('courts.is_active', true)
+      .eq('courts.is_verified', true) // Only show verified courts
 
     // Search filter
     if (searchQuery) {
@@ -472,7 +474,7 @@ async function processVenuesList(supabase: any, rawVenues: any[], latitude?: num
 
   // Process and filter venues (attach computed average ratings)
   return rawVenues.map((venue: any) => {
-    const activeCourts = venue.courts.filter((c: any) => c.is_active)
+    const activeCourts = venue.courts.filter((c: any) => c.is_active && c.is_verified)
 
     // Calculate min/max price from active courts
     const prices = activeCourts.map((c: any) => c.hourly_rate)
@@ -609,7 +611,7 @@ export async function getVenueById(
     })
 
     // Process courts
-    const activeCourts = venue.courts.filter(c => c.is_active)
+    const activeCourts = venue.courts.filter((c: any) => c.is_active && c.is_verified)
     const prices = activeCourts.map(c => c.hourly_rate)
 
     // Collect unique amenities

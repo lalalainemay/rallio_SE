@@ -219,11 +219,13 @@ export async function validateBookingAvailabilityAction(data: {
   const startDayIndex = initialStartTime.getDay() // 0-6
 
   // 1. GENERATE PHASE
+  // Deduplicate and sort selected days to prevent duplicate slots
+  const uniqueSelectedDays = Array.from(new Set(selectedDays)).sort((a, b) => a - b)
   const targetSlots: { start: Date; end: Date; weekIndex: number }[] = []
 
   for (let i = 0; i < recurrenceWeeks; i++) {
     const weekBaseTime = initialStartTime.getTime() + (i * 7 * 24 * 60 * 60 * 1000)
-    for (const dayIndex of selectedDays) {
+    for (const dayIndex of uniqueSelectedDays) {
       const dayOffset = dayIndex - startDayIndex
       const slotStartTime = new Date(weekBaseTime + (dayOffset * 24 * 60 * 60 * 1000))
       const slotEndTime = new Date(slotStartTime.getTime() + durationMs)
@@ -236,6 +238,20 @@ export async function validateBookingAvailabilityAction(data: {
   }
 
   if (targetSlots.length === 0) return { available: false, error: 'No slots generated.' }
+
+  // Check for internal overlaps within the generated slots
+  // (e.g. if duration > 24h or weird scheduling)
+  targetSlots.sort((a, b) => a.start.getTime() - b.start.getTime())
+
+  for (let i = 0; i < targetSlots.length - 1; i++) {
+    const current = targetSlots[i]
+    const next = targetSlots[i + 1]
+
+    // Check if current End > next Start
+    if (current.end.getTime() > next.start.getTime()) {
+      return { available: false, error: 'Internal conflict: Generated slots overlap with each other.' }
+    }
+  }
 
   // 2. VALIDATION PHASE
   for (const slot of targetSlots) {
@@ -336,13 +352,15 @@ export async function createReservationAction(data: {
 
   // 1. GENERATE PHASE
   // Generate all intended slots to book
+  // Deduplicate and sort selected days to prevent duplicate slots
+  const uniqueSelectedDays = Array.from(new Set(selectedDays)).sort((a, b) => a - b)
   const targetSlots: { start: Date; end: Date; weekIndex: number }[] = []
 
   for (let i = 0; i < recurrenceWeeks; i++) {
     // The "base" date for this week's iteration (aligned with the initial start date)
     const weekBaseTime = initialStartTime.getTime() + (i * 7 * 24 * 60 * 60 * 1000)
 
-    for (const dayIndex of selectedDays) {
+    for (const dayIndex of uniqueSelectedDays) {
       // Calculate offset from the original start day
       // e.g. Start is Wed (3). Target is Mon (1). Offset = -2 days.
       const dayOffset = dayIndex - startDayIndex
@@ -367,6 +385,17 @@ export async function createReservationAction(data: {
 
   if (targetSlots.length === 0) {
     return { success: false, error: 'No valid future slots generated.' }
+  }
+
+  // Check for internal overlaps
+  targetSlots.sort((a, b) => a.start.getTime() - b.start.getTime())
+  for (let i = 0; i < targetSlots.length - 1; i++) {
+    const current = targetSlots[i]
+    const next = targetSlots[i + 1]
+
+    if (current.end.getTime() > next.start.getTime()) {
+      return { success: false, error: 'Booking Request Invalid: Generated slots overlap with each other.' }
+    }
   }
 
   // 2. VALIDATION PHASE

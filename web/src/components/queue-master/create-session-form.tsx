@@ -1,3 +1,5 @@
+'use client'
+
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createQueueSession } from '@/app/actions/queue-actions'
@@ -67,6 +69,58 @@ export function CreateSessionForm() {
       setSelectedDays([startDate.getDay()])
     }
   }, [startDate])
+
+  // Validate recurring availability
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+
+    async function validateRecurring() {
+      if (!startDate || !startTime || (!recurrenceWeeks && selectedDays.length <= 1)) {
+        setValidationState({ valid: true, validating: false })
+        return
+      }
+
+      setValidationState(prev => ({ ...prev, validating: true, valid: true, error: undefined }))
+
+      // Calculate end time
+      const [startH, startM] = startTime.split(':').map(Number)
+      const endH = startH + duration
+      const endTime = `${endH.toString().padStart(2, '0')}:${startM.toString().padStart(2, '0')}`
+
+      try {
+        const dateStr = format(startDate, 'yyyy-MM-dd')
+        const startDateTime = `${dateStr}T${startTime}:00`
+        const endDateTime = `${dateStr}T${endTime}:00`
+
+        const result = await validateBookingAvailabilityAction({
+          courtId,
+          startTimeISO: startDateTime,
+          endTimeISO: endDateTime,
+          recurrenceWeeks,
+          selectedDays
+        })
+
+        if (!result.available) {
+          setValidationState({
+            valid: false,
+            validating: false,
+            error: result.error,
+            conflictDate: result.conflictDate
+          })
+        } else {
+          setValidationState({ valid: true, validating: false })
+        }
+      } catch (err) {
+        console.error("Validation error", err)
+        setValidationState({ valid: false, validating: false, error: "Validation failed." })
+      }
+    }
+
+    // Debounce validation
+    timeoutId = setTimeout(validateRecurring, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [startTime, duration, recurrenceWeeks, selectedDays, startDate, courtId])
 
   const handleTimeSelect = (clickedSlot: TimeSlot) => {
     if (!clickedSlot.available) return
@@ -190,7 +244,7 @@ export function CreateSessionForm() {
       if (venuesError) throw venuesError
       setVenues(venuesData || [])
     } catch (err: any) {
-      if (err.name === 'AbortError' || err.message === 'The operation was aborted') return
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || err.toString().includes('AbortError')) return
       setError(err.message || 'Failed to load venues')
     } finally {
       setIsLoading(false)
@@ -387,85 +441,53 @@ export function CreateSessionForm() {
               </div>
 
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Left Column: Calendar & Recurrence */}
-                  <div>
-                    {/* Calendar */}
-                    <div className="mb-6">
-                      <h4 className="font-semibold text-gray-900 mb-3 block text-sm">Choose Date <span className="text-red-500">*</span></h4>
-                      <div className="border border-gray-200 rounded-xl p-4 w-fit bg-white">
-                        <DayPicker
-                          mode="single"
-                          selected={startDate}
-                          onSelect={(date) => {
-                            if (date) {
-                              setStartDate(date)
-                              setStartTime('') // Reset time
-                              setDuration(1)
-                            }
-                          }}
-                          disabled={(date) => {
-                            const today = new Date()
-                            today.setHours(0, 0, 0, 0)
-                            return date < today
-                          }}
-                          className="mx-auto"
-                          modifiersClassNames={{
-                            selected: 'bg-primary text-white hover:bg-primary',
-                            today: 'font-bold text-primary',
-                          }}
-                        />
+                <div className="flex flex-col lg:flex-row gap-8">
+                  {/* Left: Calendar */}
+                  <div className="flex-shrink-0">
+                    <h4 className="font-semibold text-gray-900 mb-3 block text-sm">Choose Date <span className="text-red-500">*</span></h4>
+                    <div className="border border-gray-200 rounded-xl p-4 w-fit bg-white">
+                      <DayPicker
+                        mode="single"
+                        selected={startDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            setStartDate(date)
+                            setStartTime('') // Reset time
+                            setDuration(1)
+                          }
+                        }}
+                        disabled={(date) => {
+                          const today = new Date()
+                          today.setHours(0, 0, 0, 0)
+                          return date < today
+                        }}
+                        className="mx-auto"
+                        modifiersClassNames={{
+                          selected: 'bg-primary text-white hover:bg-primary',
+                          today: 'font-bold text-primary',
+                        }}
+                      />
 
-                        {/* Legend */}
-                        <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
-                          <div className="flex items-center gap-2 text-xs">
-                            <div className="w-4 h-4 bg-white border-2 border-gray-300 rounded" />
-                            <span className="text-gray-600">Available</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs">
-                            <div className="w-4 h-4 bg-gray-100 text-gray-400 flex items-center justify-center rounded text-[10px]">✕</div>
-                            <span className="text-gray-600">Reserved / Unavailable</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs">
-                            <div className="w-4 h-4 bg-primary rounded" />
-                            <span className="text-gray-600">Selected</span>
-                          </div>
+                      {/* Legend */}
+                      <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
+                        <div className="flex items-center gap-2 text-xs">
+                          <div className="w-4 h-4 bg-white border-2 border-gray-300 rounded" />
+                          <span className="text-gray-600">Available</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <div className="w-4 h-4 bg-gray-100 text-gray-400 flex items-center justify-center rounded text-[10px]">✕</div>
+                          <span className="text-gray-600">Reserved / Unavailable</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs">
+                          <div className="w-4 h-4 bg-primary rounded" />
+                          <span className="text-gray-600">Selected</span>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Recurrence */}
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-4 h-4 text-primary" />
-                        <label className="text-sm font-semibold text-gray-900">Repeat Booking</label>
-                      </div>
-
-                      <select
-                        value={recurrenceWeeks}
-                        onChange={(e) => setRecurrenceWeeks(Number(e.target.value))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent bg-white text-sm"
-                      >
-                        {[1, 2, 3, 4, 8].map((weeks) => (
-                          <option key={weeks} value={weeks}>
-                            {weeks === 1 ? 'One-time session' : `${weeks} Weeks`}
-                          </option>
-                        ))}
-                      </select>
-
-                      {recurrenceWeeks > 1 && (
-                        <div className="mt-2 text-xs text-blue-700 bg-blue-50 px-2 py-1.5 rounded flex items-start gap-1.5 border border-blue-100">
-                          <Info className="w-3 h-3 mt-0.5" />
-                          <span>
-                            Session will occur for <strong>{recurrenceWeeks} consecutive weeks</strong>.
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
 
-                  {/* Right Column: Time Slots */}
-                  <div>
+                  {/* Right: Time Slots */}
+                  <div className="flex-1">
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="font-semibold text-gray-900 text-sm">Select Time Range <span className="text-red-500">*</span></h4>
                       {duration > 1 && (
@@ -556,8 +578,83 @@ export function CreateSessionForm() {
                     )}
                   </div>
                 </div>
+
+                <div className="space-y-4">
+                  {/* Recurrence */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                      <label className="text-sm font-semibold text-gray-900">Repeat Booking</label>
+                    </div>
+
+                    <Select
+                      value={recurrenceWeeks.toString()}
+                      onValueChange={(val) => setRecurrenceWeeks(Number(val))}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select recurrence" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 Week (One-time)</SelectItem>
+                        <SelectItem value="2">2 Weeks</SelectItem>
+                        <SelectItem value="3">3 Weeks</SelectItem>
+                        <SelectItem value="4">4 Weeks</SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {recurrenceWeeks > 1 && (
+                      <p className="text-xs text-blue-600 mt-2">
+                        Same time for {recurrenceWeeks} consecutive weeks
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Include Days */}
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xl">📅</span>
+                      <Label className="text-sm font-semibold text-gray-900">Include Days</Label>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => {
+                        const isPrimaryDay = startDate ? index === startDate.getDay() : false
+                        const isSelected = selectedDays.includes(index)
+
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            disabled={isPrimaryDay}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedDays(prev => prev.filter(d => d !== index))
+                              } else {
+                                setSelectedDays(prev => [...prev, index].sort())
+                              }
+                            }}
+                            className={cn(
+                              "px-3 py-1.5 rounded text-xs font-medium border transition-colors",
+                              isSelected
+                                ? "bg-primary text-white border-primary"
+                                : "bg-white text-gray-700 border-gray-300 hover:border-primary/50",
+                              isPrimaryDay && "opacity-60 cursor-not-allowed"
+                            )}
+                          >
+                            {day}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    <p className="text-xs text-gray-500 mt-2">
+                      Select additional days to book at the same time slot.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
+
 
 
             {/* Game Settings */}
@@ -699,31 +796,52 @@ export function CreateSessionForm() {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-3 pt-6 border-t border-gray-200">
-              <Link
-                href="/queue-master"
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-              >
-                <ArrowLeft className="w-4 h-4 inline mr-2" />
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={isSubmitting || !courtId || !startTime}
-                className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Creating Session...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-5 h-5" />
-                    Create Session
-                  </>
+            <div className="pt-6 border-t border-gray-200">
+              {/* Validation Status */}
+              <div className="mb-4">
+                {!validationState.valid && validationState.error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm flex items-start gap-2 animate-pulse">
+                    <span className="text-red-500 mt-0.5">⚠️</span>
+                    <div>
+                      <p className="font-semibold text-red-800 text-xs uppercase tracking-wide">Cannot Book</p>
+                      <p className="text-red-700 font-medium">{validationState.error}</p>
+                    </div>
+                  </div>
                 )}
-              </button>
+                {validationState.validating && (
+                  <div className="mb-2 text-xs text-blue-600 flex items-center gap-1.5">
+                    <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent" />
+                    Checking availability...
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/queue-master"
+                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  <ArrowLeft className="w-4 h-4 inline mr-2" />
+                  Cancel
+                </Link>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !courtId || !startTime || !validationState.valid || validationState.validating}
+                  className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Creating Session...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Create Session
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -798,7 +916,7 @@ export function CreateSessionForm() {
             )}
           </div>
         </div>
-      </div >
-    </div >
+      </div>
+    </div>
   )
 }
