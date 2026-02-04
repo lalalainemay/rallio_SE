@@ -72,8 +72,13 @@ export async function getAvailableTimeSlotsAction(
   const dateOnlyString = format(date, 'yyyy-MM-dd')
   const activeStatuses = ['pending_payment', 'pending', 'paid', 'confirmed']
 
+  // Use timezone-aware date range (Asia/Manila = +08:00)
+  // Query from midnight to end of day in the venue's timezone
+  const startOfDayLocal = `${dateOnlyString}T00:00:00+08:00`
+  const endOfDayLocal = `${dateOnlyString}T23:59:59+08:00`
+
   console.log(`[Availability Check] Querying for date: ${dateOnlyString}`)
-  console.log(`[Availability Check] Date range: ${dateOnlyString}T00:00:00 to ${dateOnlyString}T23:59:59`)
+  console.log(`[Availability Check] Date range: ${startOfDayLocal} to ${endOfDayLocal}`)
 
   const [reservationsResult, queueSessionsResult] = await Promise.all([
     // Get reservations
@@ -81,8 +86,8 @@ export async function getAvailableTimeSlotsAction(
       .from('reservations')
       .select('start_time, end_time, status')
       .eq('court_id', courtId)
-      .gte('start_time', `${dateOnlyString}T00:00:00`)
-      .lte('start_time', `${dateOnlyString}T23:59:59`)
+      .gte('start_time', startOfDayLocal)
+      .lte('start_time', endOfDayLocal)
       .in('status', activeStatuses),
 
     // Get queue sessions
@@ -90,11 +95,12 @@ export async function getAvailableTimeSlotsAction(
       .from('queue_sessions')
       .select('start_time, end_time, status, approval_status')
       .eq('court_id', courtId)
-      .gte('start_time', `${dateOnlyString}T00:00:00`)
-      .lte('start_time', `${dateOnlyString}T23:59:59`)
+      .gte('start_time', startOfDayLocal)
+      .lte('start_time', endOfDayLocal)
       .in('status', ['draft', 'active', 'pending_approval'])
       .in('approval_status', ['pending', 'approved'])
   ])
+
 
   if (reservationsResult.error) {
     console.error('Error fetching reservations:', reservationsResult.error)
@@ -505,7 +511,11 @@ export async function createReservationAction(data: {
           booking_origin: 'web_checkout',
           intended_payment_method: data.paymentMethod ?? null,
           recurrence_index: i,
-          recurrence_total: targetSlots.length
+          recurrence_total: targetSlots.length,
+          // Add week-specific metadata for proper display
+          week_index: slot.weekIndex,
+          weeks_total: recurrenceWeeks,
+          days_per_week: uniqueSelectedDays.length
         },
         notes: data.notes ? (isRecurring ? `${data.notes} (Seq ${i + 1})` : data.notes) : null,
       })
