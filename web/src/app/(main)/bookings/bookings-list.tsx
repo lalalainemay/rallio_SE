@@ -56,6 +56,7 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [resumingPaymentId, setResumingPaymentId] = useState<string | null>(null)
   const [filter, setFilter] = useState<'all' | 'today' | 'week'>('all')
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming')
 
   const activeStatuses = ['pending_payment', 'pending', 'paid', 'confirmed']
 
@@ -108,13 +109,31 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
           reasonCode: 'requested_by_customer'
         })
 
-        if (!refundResult.success) {
-          // Still cancel even if refund fails (manual refund may be needed)
+        if (refundResult.success) {
+          // Refund requested successfully! Status is now pending_refund.
+          setBookings(prev => prev.map(b =>
+            b.id === booking.id ? { ...b, status: 'pending_refund' } : b
+          ))
+          setCancellingId(null)
+          return
+        } else {
           console.warn('Refund request failed:', refundResult.error)
+          // If refund fails, we might still want to cancel? 
+          // Or alert user? Let's alert.
+          alert(`Refund request failed: ${refundResult.error || 'Unknown error'}.`)
         }
       }
 
-      // Cancel the booking
+      // Cancel the booking (if not refunding or if refund failed but we proceed? No, stop if refund intent failed usually)
+      if (isPaid && !isWithin24Hours) {
+        // If we are here, refund action was attempted but logic above `return`ed if success.
+        // If failed, we probably stopped or continued? 
+        // Let's assume if refund failed components didn't return, we try to cancel reservation anyway?
+        // No, if refund failed, we should probably stop.
+        setCancellingId(null)
+        return
+      }
+
       const result = await cancelReservationAction(booking.id)
 
       if (result.success) {
@@ -160,6 +179,17 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
     }
   }
 
+  // Update getPaymentStatus to handle pending_refund
+  const getExtendedPaymentStatus = (booking: Booking) => {
+    if (booking.status === 'pending_refund') {
+      return { label: 'Refund Pending', color: 'orange', needsPayment: false }
+    }
+    if (booking.status === 'refunded') {
+      return { label: 'Refunded', color: 'gray', needsPayment: false }
+    }
+    return getPaymentStatus(booking)
+  }
+
   const canCancelBooking = (booking: Booking): boolean => {
     const startTime = new Date(booking.start_time)
     const hoursUntilStart = differenceInHours(startTime, new Date())
@@ -177,14 +207,32 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
     const startTime = new Date(booking.start_time)
     const now = new Date()
 
-    if (filter === 'today') {
-      return format(startTime, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd')
+    if (activeTab === 'upcoming') {
+      // Upcoming: Future ACTIVE bookings
+      if (!activeStatuses.includes(booking.status)) return false
+      if (startTime < now) return false // Past bookings go to history
+
+      if (filter === 'today') {
+        return format(startTime, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd')
+      }
+      if (filter === 'week') {
+        const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+        return startTime <= weekFromNow
+      }
+      return true
+    } else {
+      // History: Past or Cancelled/Refunded
+      const isHistoryStatus = ['cancelled', 'refunded', 'pending_refund', 'completed', 'no_show'].includes(booking.status)
+      const isPastActive = activeStatuses.includes(booking.status) && startTime < now
+      return isHistoryStatus || isPastActive
     }
-    if (filter === 'week') {
-      const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-      return startTime <= weekFromNow
-    }
-    return true
+  })
+
+  // Sort Bookings
+  filteredBookings.sort((a, b) => {
+    const timeA = new Date(a.start_time).getTime()
+    const timeB = new Date(b.start_time).getTime()
+    return activeTab === 'upcoming' ? timeA - timeB : timeB - timeA
   })
 
   const bookingStatusBadge = (status: string) => {
@@ -194,6 +242,10 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
       paid: 'bg-teal-500 text-white',
       confirmed: 'bg-green-600 text-white',
       cancelled: 'bg-red-600 text-white',
+      pending_refund: 'bg-orange-500 text-white',
+      refunded: 'bg-gray-500 text-white',
+      completed: 'bg-blue-600 text-white',
+      no_show: 'bg-gray-700 text-white',
     }
 
     const readable = status
@@ -216,25 +268,49 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
 
   return (
     <div>
-      {/* Filter Tabs */}
-      <div className="mb-6 flex gap-2 border-b border-gray-200">
-        {[
-          { value: 'all', label: 'All Upcoming' },
-          { value: 'today', label: 'Today' },
-          { value: 'week', label: 'This Week' },
-        ].map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setFilter(tab.value as any)}
-            className={`px-4 py-3 font-medium text-sm border-b-2 transition-all ${filter === tab.value
+      {/* Main Tabs */}
+      <div className="flex gap-2 mb-6 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('upcoming')}
+          className={`px-4 py-3 font-medium text-sm border-b-2 transition-all ${activeTab === 'upcoming'
               ? 'border-primary text-primary'
               : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-              }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+            }`}
+        >
+          Upcoming
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`px-4 py-3 font-medium text-sm border-b-2 transition-all ${activeTab === 'history'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            }`}
+        >
+          History & Refunds
+        </button>
       </div>
+
+      {/* Filter Tabs (Only for Upcoming) */}
+      {activeTab === 'upcoming' && (
+        <div className="mb-6 flex gap-2 border-b border-gray-200">
+          {[
+            { value: 'all', label: 'All Upcoming' },
+            { value: 'today', label: 'Today' },
+            { value: 'week', label: 'This Week' },
+          ].map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => setFilter(tab.value as any)}
+              className={`px-4 py-3 font-medium text-sm border-b-2 transition-all ${filter === tab.value
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
@@ -318,9 +394,11 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No upcoming bookings</h3>
             <p className="text-gray-600 mb-6">
-              {filter === 'all'
-                ? "You don't have any upcoming bookings. Find a court and make your first reservation!"
-                : `No bookings ${filter === 'today' ? 'today' : 'this week'}.`}
+              {activeTab === 'upcoming'
+                ? (filter === 'all'
+                  ? "You don't have any upcoming bookings. Find a court and make your first reservation!"
+                  : `No bookings ${filter === 'today' ? 'today' : 'this week'}.`)
+                : "You don't have any booking history yet."}
             </p>
             <Link href="/courts">
               <Button size="lg" className="bg-primary hover:bg-primary/90">
@@ -337,7 +415,7 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
           {filteredBookings.map((booking) => {
             const startDate = new Date(booking.start_time)
             const endDate = new Date(booking.end_time)
-            const paymentStatus = getPaymentStatus(booking)
+            const paymentStatus = getExtendedPaymentStatus(booking)
 
             return (
               <Card key={booking.id} className="overflow-hidden hover:shadow-lg transition-shadow">
@@ -447,9 +525,16 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
                         totalAmount={booking.total_amount * 100}
                         startTime={booking.start_time}
                         onRefundRequested={() => {
-                          setBookings((prev) => prev.filter((b) => b.id !== booking.id))
+                          setBookings((prev) => prev.map((b) => b.id === booking.id ? { ...b, status: 'pending_refund' } : b))
                         }}
                       />
+                    )}
+
+                    {/* Status Message for Pending Refund */}
+                    {booking.status === 'pending_refund' && (
+                      <div className="w-full p-2 bg-orange-50 border border-orange-200 rounded-md text-center text-sm text-orange-700 font-medium">
+                        Refund Request Pending Approval
+                      </div>
                     )}
 
                     {/* Continue Payment Button for Pending Payments */}

@@ -163,7 +163,8 @@ export default async function HomePage() {
                 const imageUrl = primaryImage?.url || venue.courts?.[0]?.court_images?.[0]?.url
 
                 // Calculate price range
-                const prices = venue.courts?.map((c: any) => c.hourly_rate) || []
+                const rawPrices = venue.courts?.map((c: any) => c.hourly_rate) || []
+                const prices = rawPrices.filter((rate: any) => typeof rate === 'number' && !isNaN(rate) && rate > 0)
                 const minPrice = prices.length > 0 ? Math.min(...prices) : null
                 const maxPrice = prices.length > 0 ? Math.max(...prices) : null
 

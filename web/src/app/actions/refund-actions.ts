@@ -140,7 +140,7 @@ export async function requestRefundAction(params: RefundRequestParams): Promise<
 
     const paymongoPaymentId = paymentToRefund.external_payment_id || paymentToRefund.metadata?.payment_id
 
-    // Create refund record in database first
+    // Create refund record form in database first
     const { data: refundRecord, error: insertError } = await supabase
       .from('refunds')
       .insert({
@@ -165,6 +165,12 @@ export async function requestRefundAction(params: RefundRequestParams): Promise<
       console.error('❌ [requestRefundAction] Failed to create refund record:', insertError)
       return { success: false, error: 'Failed to create refund request' }
     }
+
+    // Set reservation status to pending_refund
+    await supabase
+      .from('reservations')
+      .update({ status: 'pending_refund' })
+      .eq('id', params.reservationId)
 
     console.log('✅ [requestRefundAction] Refund record created:', refundRecord.id)
 
@@ -217,6 +223,12 @@ export async function requestRefundAction(params: RefundRequestParams): Promise<
           error_code: 'paymongo_error',
         })
         .eq('id', refundRecord.id)
+
+      // Revert reservation status
+      await supabase
+        .from('reservations')
+        .update({ status: 'paid' }) // Assume paid since we verified it earlier
+        .eq('id', params.reservationId)
 
       return {
         success: false,
@@ -313,7 +325,7 @@ export async function cancelRefundRequestAction(refundId: string): Promise<Refun
     // Get refund and verify ownership
     const { data: refund, error: refundError } = await supabase
       .from('refunds')
-      .select('*, reservations(user_id)')
+      .select('*, reservations(user_id, status)')
       .eq('id', refundId)
       .single()
 
@@ -342,6 +354,14 @@ export async function cancelRefundRequestAction(refundId: string): Promise<Refun
 
     if (updateError) {
       return { success: false, error: 'Failed to cancel refund' }
+    }
+
+    // Revert reservation status if it was pending_refund
+    if (refund.reservations?.status === 'pending_refund') {
+      await supabase
+        .from('reservations')
+        .update({ status: 'paid' }) // Revert to paid
+        .eq('id', refund.reservation_id)
     }
 
     revalidatePath('/bookings')
@@ -414,6 +434,12 @@ export async function adminProcessRefundAction(
           notes: adminNotes || 'Rejected by admin',
         })
         .eq('id', refundId)
+
+      // Revert reservation status
+      await supabase
+        .from('reservations')
+        .update({ status: 'paid' }) // Revert to paid
+        .eq('id', refund.reservation_id)
 
       // Notify user
       await createNotification({

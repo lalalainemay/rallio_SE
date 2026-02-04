@@ -481,6 +481,10 @@ export default function CourtsPage() {
               {venues.map((venue) => {
                 const rating = venueRatings[venue.id];
                 const isOpen = isVenueOpen(venue.opening_hours);
+                const validRates = venue.courts
+                  .map(c => c.hourly_rate)
+                  .filter(rate => typeof rate === 'number' && !isNaN(rate) && rate > 0);
+                const minPrice = validRates.length > 0 ? Math.min(...validRates) : null;
 
                 return (
                   <Link
@@ -625,10 +629,16 @@ export default function CourtsPage() {
                         <div className="flex flex-col">
                           <span className="text-[10px] md:text-xs text-gray-400">Starting from</span>
                           <span className="font-bold text-sm md:text-base text-primary">
-                            ₱{Math.min(...venue.courts.map((c) => c.hourly_rate))}
-                            <span className="text-[10px] md:text-sm font-normal text-gray-500">
-                              /hr
-                            </span>
+                            {minPrice !== null ? (
+                              <>
+                                ₱{minPrice}
+                                <span className="text-[10px] md:text-sm font-normal text-gray-500">
+                                  /hr
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-sm font-medium text-gray-400">N/A</span>
+                            )}
                           </span>
                         </div>
                         <span className="text-[10px] md:text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full">

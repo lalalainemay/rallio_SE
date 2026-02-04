@@ -70,7 +70,7 @@ export async function getAvailableTimeSlotsAction(
   // Get existing reservations AND queue sessions for this court on this date
   // Query for the entire day range to catch any overlapping bookings
   const dateOnlyString = format(date, 'yyyy-MM-dd')
-  const activeStatuses = ['pending_payment', 'pending', 'paid', 'confirmed']
+  const activeStatuses = ['pending_payment', 'pending', 'paid', 'confirmed', 'pending_refund']
 
   // Use timezone-aware date range (Asia/Manila = +08:00)
   // Query from midnight to end of day in the venue's timezone
@@ -263,7 +263,7 @@ export async function validateBookingAvailabilityAction(data: {
   for (const slot of targetSlots) {
     const currentStartTimeISO = slot.start.toISOString()
     const currentEndTimeISO = slot.end.toISOString()
-    const conflictStatuses = ['pending_payment', 'pending', 'paid', 'confirmed']
+    const conflictStatuses = ['pending_payment', 'pending', 'paid', 'confirmed', 'pending_refund']
 
     const [reservationConflicts, queueConflicts] = await Promise.all([
       supabase
@@ -410,7 +410,7 @@ export async function createReservationAction(data: {
     const currentStartTimeISO = slot.start.toISOString()
     const currentEndTimeISO = slot.end.toISOString()
 
-    const conflictStatuses = ['pending_payment', 'pending', 'paid', 'confirmed']
+    const conflictStatuses = ['pending_payment', 'pending', 'paid', 'confirmed', 'pending_refund']
 
     const [reservationConflicts, queueConflicts] = await Promise.all([
       supabase
