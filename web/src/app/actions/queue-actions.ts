@@ -1930,6 +1930,11 @@ export async function getQueueMasterStats(): Promise<{
     totalRevenue: number
     averagePlayers: number
     activeSessions: number
+    counts: {
+      active: number
+      upcoming: number
+      past: number
+    }
   }
   error?: string
 }> {
@@ -1949,6 +1954,7 @@ export async function getQueueMasterStats(): Promise<{
       .select(`
         id,
         status,
+        start_time,
         current_players,
         cost_per_game,
         queue_participants (
@@ -1956,30 +1962,58 @@ export async function getQueueMasterStats(): Promise<{
         )
       `)
       .eq('organizer_id', user.id)
-      .neq('status', 'draft')
+    // Remove .neq('status', 'draft') so we count drafts in 'upcoming' or similar if desired
+    // But maybe we want to keep them hidden from stats?
+    // Dashboard usually shows drafts in upcoming or active.
+    // Let's remove the draft filter to be inclusive.
 
     if (error) {
       console.error('[getQueueMasterStats] ❌ Failed to fetch stats:', error)
       return { success: false, error: 'Failed to fetch stats' }
     }
 
+    const now = new Date()
     const totalSessions = sessions?.length || 0
-    const activeSessions = sessions?.filter(s => ['active', 'open'].includes(s.status)).length || 0
 
-    // Calculate revenue and average players
+    // Categorize sessions
+    let activeCount = 0
+    let upcomingCount = 0
+    let pastCount = 0
+
     let totalRevenue = 0
     let totalPlayers = 0
+    let evaluatedSessions = 0
 
     sessions?.forEach(session => {
-      // Revenue
-      const sessionRevenue = session.queue_participants?.reduce((sum, p) => sum + (p.amount_owed || 0), 0) || 0
+      const startTime = new Date(session.start_time)
+      const isFuture = startTime > now
+
+      // Count logic matching Dashboard filters
+      if (['closed', 'cancelled', 'rejected', 'completed', 'expired'].includes(session.status)) {
+        pastCount++
+      } else if (['draft'].includes(session.status)) {
+        upcomingCount++
+      } else if (session.status === 'open') {
+        if (isFuture) {
+          upcomingCount++
+        } else {
+          activeCount++
+        }
+      } else if (['active', 'paused', 'pending_approval'].includes(session.status)) {
+        activeCount++
+      }
+
+      // Stats calculation (exclude cancelled/drafts from revenue/avg if preferred, but let's just sum all that have participants)
+      const sessionRevenue = session.queue_participants?.reduce((sum: number, p: any) => sum + (p.amount_owed || 0), 0) || 0
       totalRevenue += sessionRevenue
 
-      // Players
-      totalPlayers += session.queue_participants?.length || 0
+      if (['active', 'open', 'closed', 'completed'].includes(session.status)) {
+        totalPlayers += session.queue_participants?.length || 0
+        evaluatedSessions++
+      }
     })
 
-    const averagePlayers = totalSessions > 0 ? Math.round(totalPlayers / totalSessions) : 0
+    const averagePlayers = evaluatedSessions > 0 ? Math.round(totalPlayers / evaluatedSessions) : 0
 
     return {
       success: true,
@@ -1987,7 +2021,12 @@ export async function getQueueMasterStats(): Promise<{
         totalSessions,
         totalRevenue,
         averagePlayers,
-        activeSessions
+        activeSessions: activeCount, // Backward compatibility
+        counts: {
+          active: activeCount,
+          upcoming: upcomingCount,
+          past: pastCount
+        }
       }
     }
   } catch (error: any) {

@@ -14,7 +14,8 @@ import {
   LogOut,
   User,
   ArrowLeft,
-  ChevronRight
+  ChevronRight,
+  Plus
 } from 'lucide-react'
 
 interface QueueMasterSidebarProps {
@@ -39,7 +40,7 @@ export function QueueMasterSidebar({ user }: QueueMasterSidebarProps) {
 
   const navItems = [
     { href: '/queue-master', label: 'Dashboard', icon: LayoutDashboard, exact: true },
-    { href: '/queue-master/create', label: 'Create Session', icon: Calendar },
+    { href: '/queue-master/my-sessions', label: 'My Sessions', icon: Calendar },
     { href: '/queue-master/analytics', label: 'Analytics', icon: BarChart3 },
   ]
 

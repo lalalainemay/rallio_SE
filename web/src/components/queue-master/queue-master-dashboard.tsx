@@ -28,6 +28,11 @@ interface DashboardStats {
   totalRevenue: number
   averagePlayers: number
   activeSessions: number
+  counts: {
+    active: number
+    upcoming: number
+    past: number
+  }
 }
 
 export function QueueMasterDashboard() {
@@ -36,7 +41,12 @@ export function QueueMasterDashboard() {
     totalSessions: 0,
     totalRevenue: 0,
     averagePlayers: 0,
-    activeSessions: 0
+    activeSessions: 0,
+    counts: {
+      active: 0,
+      upcoming: 0,
+      past: 0
+    }
   })
   const [filter, setFilter] = useState<SessionStatus>('active')
   const [isLoading, setIsLoading] = useState(true)
@@ -53,9 +63,6 @@ export function QueueMasterDashboard() {
       // Load sessions and stats in parallel
       const [sessionsResult, statsResult] = await Promise.all([
         getMyQueueMasterSessions({ status: filter }),
-        // Only fetch stats once or every time? Fetching every time ensures sync, 
-        // but arguably stats shouldn't change just by changing filter. 
-        // However, we need to load them initially.
         getQueueMasterStats()
       ])
 
@@ -66,7 +73,7 @@ export function QueueMasterDashboard() {
       }
 
       if (statsResult.success && statsResult.stats) {
-        setStats(statsResult.stats)
+        setStats(statsResult.stats as DashboardStats)
       }
     } catch (err) {
       setError('An unexpected error occurred')
@@ -175,7 +182,7 @@ export function QueueMasterDashboard() {
             : 'text-gray-600 hover:bg-gray-100'
             }`}
         >
-          Active ({sessions.filter(s => ['active', 'open'].includes(s.status)).length})
+          Active ({stats.counts.active})
         </button>
         <button
           onClick={() => setFilter('upcoming')}
@@ -184,7 +191,7 @@ export function QueueMasterDashboard() {
             : 'text-gray-600 hover:bg-gray-100'
             }`}
         >
-          Upcoming
+          Upcoming ({stats.counts.upcoming})
         </button>
         <button
           onClick={() => setFilter('past')}
@@ -193,7 +200,7 @@ export function QueueMasterDashboard() {
             : 'text-gray-600 hover:bg-gray-100'
             }`}
         >
-          Past
+          Past ({stats.counts.past})
         </button>
       </div>
 
@@ -226,17 +233,23 @@ export function QueueMasterDashboard() {
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Calendar className="w-8 h-8 text-gray-400" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">No Sessions Yet</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">
+              {stats.totalSessions === 0 ? 'No Sessions Yet' : `No ${filter} sessions found`}
+            </h3>
             <p className="text-sm text-gray-500 mb-6">
-              Create your first queue session to get started
+              {stats.totalSessions === 0
+                ? 'Create your first queue session to get started'
+                : `You don't have any ${filter} sessions at the moment.`}
             </p>
-            <Link
-              href="/queue-master/create"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Create Session</span>
-            </Link>
+            {stats.totalSessions === 0 && (
+              <Link
+                href="/queue-master/create"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Create Session</span>
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
