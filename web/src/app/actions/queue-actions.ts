@@ -1837,9 +1837,31 @@ export async function getMyQueueMasterSessions(filter?: {
       return { success: false, error: 'Failed to fetch sessions' }
     }
 
+    // Filter out expired sessions if we are looking for active ones
+    // and fire-and-forget an update to close them
+    const now = new Date()
+    const validSessions = sessions.filter((session: any) => {
+      if (['open', 'active', 'paused'].includes(session.status)) {
+        const endTime = new Date(session.end_time)
+        if (endTime < now) {
+          // Expired!
+          console.log('[getMyQueueMasterSessions] 🕒 Session expired, auto-closing:', session.id)
+          supabase.from('queue_sessions').update({ status: 'closed' }).eq('id', session.id).then(({ error }) => {
+            if (error) console.error('Failed to auto-close expired session:', session.id, error)
+          })
+
+          // If filtering for active, exclude this
+          if (filter?.status === 'active' || filter?.status === 'upcoming') {
+            return false
+          }
+        }
+      }
+      return true
+    })
+
     // 3. Get participant data for each session
     const sessionsWithParticipants = await Promise.all(
-      (sessions || []).map(async (session: any) => {
+      (validSessions || []).map(async (session: any) => {
         // Get participants
         const { data: participants } = await supabase
           .from('queue_participants')
@@ -1955,6 +1977,7 @@ export async function getQueueMasterStats(): Promise<{
         id,
         status,
         start_time,
+        end_time,
         current_players,
         cost_per_game,
         queue_participants (
@@ -1986,28 +2009,40 @@ export async function getQueueMasterStats(): Promise<{
 
     sessions?.forEach(session => {
       const startTime = new Date(session.start_time)
+      const endTime = session.end_time ? new Date(session.end_time) : null
       const isFuture = startTime > now
+      const isExpired = endTime && endTime < now && ['open', 'active', 'paused'].includes(session.status)
+
+      // Auto-close if expired (fire and forget)
+      if (isExpired) {
+        supabase.from('queue_sessions').update({ status: 'closed' }).eq('id', session.id).then(({ error }) => {
+          if (error) console.error('Failed to auto-close expired session:', session.id, error)
+        })
+      }
 
       // Count logic matching Dashboard filters
-      if (['closed', 'cancelled', 'rejected', 'completed', 'expired'].includes(session.status)) {
+      // If it WAS active but is now expired, we count it as past for the stats
+      const effectiveStatus = isExpired ? 'closed' : session.status
+
+      if (['closed', 'cancelled', 'rejected', 'completed', 'expired'].includes(effectiveStatus)) {
         pastCount++
-      } else if (['draft'].includes(session.status)) {
+      } else if (['draft'].includes(effectiveStatus)) {
         upcomingCount++
-      } else if (session.status === 'open') {
+      } else if (effectiveStatus === 'open') {
         if (isFuture) {
           upcomingCount++
         } else {
           activeCount++
         }
-      } else if (['active', 'paused', 'pending_approval'].includes(session.status)) {
+      } else if (['active', 'paused', 'pending_approval'].includes(effectiveStatus)) {
         activeCount++
       }
 
-      // Stats calculation (exclude cancelled/drafts from revenue/avg if preferred, but let's just sum all that have participants)
+      // Stats calculation
       const sessionRevenue = session.queue_participants?.reduce((sum: number, p: any) => sum + (p.amount_owed || 0), 0) || 0
       totalRevenue += sessionRevenue
 
-      if (['active', 'open', 'closed', 'completed'].includes(session.status)) {
+      if (['active', 'open', 'closed', 'completed'].includes(effectiveStatus)) {
         totalPlayers += session.queue_participants?.length || 0
         evaluatedSessions++
       }
