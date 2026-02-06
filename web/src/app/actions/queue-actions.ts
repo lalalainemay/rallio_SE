@@ -1902,8 +1902,8 @@ export async function getMyQueueMasterSessions(filter?: {
       // Active: sessions that are currently running (active or paused)
       query = query.in('status', ['active', 'paused'])
     } else if (filter?.status === 'pending') {
-      // Pending: sessions that are open but not yet started (waiting for players or start time)
-      query = query.eq('status', 'open')
+      // Pending: sessions that are open or awaiting approval
+      query = query.in('status', ['open', 'pending_approval'])
     } else if (filter?.status === 'past') {
       query = query.in('status', ['closed', 'cancelled'])
     }
@@ -2106,10 +2106,10 @@ export async function getQueueMasterStats(): Promise<{
 
       if (['closed', 'cancelled', 'rejected', 'completed', 'expired'].includes(effectiveStatus)) {
         pastCount++
-      } else if (['draft', 'open'].includes(effectiveStatus)) {
-        // Pending: sessions that are open but not yet active
+      } else if (['draft', 'open', 'pending_approval'].includes(effectiveStatus)) {
+        // Pending: sessions that are open but not yet active, or awaiting approval
         pendingCount++
-      } else if (['active', 'paused', 'pending_approval'].includes(effectiveStatus)) {
+      } else if (['active', 'paused'].includes(effectiveStatus)) {
         // Active: sessions that are currently running
         activeCount++
       }

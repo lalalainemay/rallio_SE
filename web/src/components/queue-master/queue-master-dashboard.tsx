@@ -89,6 +89,7 @@ export function QueueMasterDashboard() {
       case 'paused': return 'bg-yellow-100 text-yellow-700 border-yellow-200'
       case 'closed': return 'bg-gray-100 text-gray-700 border-gray-200'
       case 'cancelled': return 'bg-red-100 text-red-700 border-red-200'
+      case 'pending_approval': return 'bg-orange-100 text-orange-700 border-orange-200'
       default: return 'bg-gray-100 text-gray-700 border-gray-200'
     }
   }
@@ -99,6 +100,7 @@ export function QueueMasterDashboard() {
       case 'open': return <Clock className="w-4 h-4" />
       case 'closed': return <CheckCircle className="w-4 h-4" />
       case 'cancelled': return <XCircle className="w-4 h-4" />
+      case 'pending_approval': return <Clock className="w-4 h-4" />
       default: return <Clock className="w-4 h-4" />
     }
   }
