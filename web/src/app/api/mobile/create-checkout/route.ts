@@ -49,7 +49,7 @@ export async function POST(req: Request) {
         // 1. Verify reservation ownership
         const { data: reservation, error: resError } = await supabase
             .from('reservations')
-            .select('user_id, status, recurrence_group_id')
+            .select('user_id, status, recurrence_group_id, metadata')
             .eq('id', reservationId)
             .single()
 
@@ -97,20 +97,22 @@ export async function POST(req: Request) {
         }
 
         // 4. Create Payment Record (Pending)
-        // This is crucial for matching the payment later
+        // Match schema from 001_initial_schema_v2.sql: user_id, reservation_id, payment_provider, etc.
         const paymentData = {
             id: crypto.randomUUID(),
+            reference: `RES-${reservationId}-${Date.now()}`,
+            user_id: user.id,  // Schema column name
+            reservation_id: reservationId,  // Schema column name
             amount: amountToCharge,
             currency: 'PHP',
             status: 'pending',
-            payment_method: 'gcash', // Default for mobile flow currently
-            provider: 'paymongo',
-            description: finalDescription,
-            reservation_id: reservationId,
-            user_id: user.id,
-            metadata: metadata,
+            payment_method: 'gcash',
+            payment_provider: 'paymongo',  // Schema column name (not just 'provider')
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            metadata: {
+                ...metadata,
+                description: finalDescription,
+            }
         }
 
         const { error: paymentError } = await supabase

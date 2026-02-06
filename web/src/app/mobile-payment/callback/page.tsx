@@ -11,9 +11,8 @@ function CallbackContent() {
 
     useEffect(() => {
         // Determine deep link based on status
-        const target = status === 'success'
-            ? 'rallio://checkout/success'
-            : 'rallio://checkout/cancel'
+        // Redirect to callback route with status parameter
+        const target = `rallio://checkout/callback?status=${status === 'success' ? 'success' : 'failed'}`
 
         setMessage(status === 'success' ? 'Payment Successful!' : 'Payment Cancelled')
 
@@ -42,7 +41,7 @@ function CallbackContent() {
 
                 <button
                     onClick={() => {
-                        const target = status === 'success' ? 'rallio://checkout/success' : 'rallio://checkout/cancel'
+                        const target = `rallio://checkout/callback?status=${status === 'success' ? 'success' : 'failed'}`
                         window.location.href = target
                     }}
                     className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"

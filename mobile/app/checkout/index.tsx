@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
     StyleSheet,
-
+    AppState,
     ScrollView,
     TouchableOpacity,
     ActivityIndicator,
@@ -40,6 +40,50 @@ export default function CheckoutScreen() {
 
     const [isProcessing, setIsProcessing] = useState(false);
     const [step, setStep] = useState<'review' | 'payment' | 'processing' | 'success'>('review');
+
+    // Track pending e-wallet payment for AppState fallback
+    const [pendingReservationId, setPendingReservationId] = useState<string | null>(null);
+    const appState = useRef(AppState.currentState);
+
+    // AppState listener - check payment status when app returns to foreground
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', async (nextAppState) => {
+            // App came back to foreground with pending payment
+            if (
+                appState.current.match(/inactive|background/) &&
+                nextAppState === 'active' &&
+                pendingReservationId
+            ) {
+                console.log('App returned to foreground, checking payment status...');
+
+                // Check reservation status in Supabase
+                const { data: reservation, error } = await supabase
+                    .from('reservations')
+                    .select('status')
+                    .eq('id', pendingReservationId)
+                    .single();
+
+                if (reservation) {
+                    console.log('Reservation status:', reservation.status);
+
+                    if (reservation.status === 'confirmed' || reservation.status === 'paid') {
+                        // Payment confirmed!
+                        setPendingReservationId(null);
+                        setStep('success');
+                    } else if (reservation.status === 'cancelled' || reservation.status === 'failed') {
+                        // Payment failed
+                        setPendingReservationId(null);
+                        Alert.alert('Payment Failed', 'Your payment was not completed. Please try again.');
+                        setStep('review');
+                    }
+                    // If still pending_payment, user might not have completed - stay on current screen
+                }
+            }
+            appState.current = nextAppState;
+        });
+
+        return () => subscription.remove();
+    }, [pendingReservationId]);
 
     // Discount State
     const [promoCode, setPromoCode] = useState('');
@@ -213,43 +257,38 @@ export default function CheckoutScreen() {
                 console.log('Mobile Checkout: Initiating E-Wallet Payment...');
 
                 // Re-use the SAME API endpoint or the specific payment endpoint?
-                // The existing code called an endpoint `/api/mobile/create-checkout`.
-                // We should keep using that if it works OR update `createReservationAction` to return a payment link.
-                // `createReservationAction` does NOT return a payment link currently.
-                // So we need to call the payment endpoint separately.
+                // MOCK PAYMENT: Directly mark as paid (bypasses PayMongo for development)
+                console.log('Mobile Checkout: Mock payment - marking as paid...');
 
-                // EXISTING FLOW maintained:
-                const paymentResponse = await fetch(`${apiUrl}/api/mobile/create-checkout`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`
-                    },
-                    body: JSON.stringify({
-                        reservationId: primaryReservationId,
-                        amount: total, // Grand total
-                        description: `Court booking at ${bookingData.venueName} (${bookingData.recurrenceWeeks && bookingData.recurrenceWeeks > 1 ? `${bookingData.recurrenceWeeks} Weeks` : 'Single'})`,
-                        successUrl: 'rallio://checkout/success',
-                        cancelUrl: 'rallio://checkout/cancel',
-                        recurrenceGroupId: recurrenceGroupId,
+                // Update reservation status directly in Supabase
+                const { error: updateError } = await supabase
+                    .from('reservations')
+                    .update({
+                        status: 'confirmed',
+                        amount_paid: total
                     })
-                });
+                    .eq('id', primaryReservationId);
 
-                if (!paymentResponse.ok) {
-                    const errorData = await paymentResponse.json();
-                    throw new Error(errorData.error || 'Payment initialization failed');
+                if (updateError) {
+                    console.error('Mock payment error:', updateError);
+                    throw new Error('Failed to process mock payment');
                 }
 
-                const payment = await paymentResponse.json();
-
-                if (payment?.checkoutUrl) {
-                    console.log('Mobile Checkout: Opening URL:', payment.checkoutUrl);
-                    await Linking.openURL(payment.checkoutUrl);
-                } else {
-                    throw new Error('No checkout URL returned');
+                // If recurring, update all related reservations
+                if (recurrenceGroupId) {
+                    await supabase
+                        .from('reservations')
+                        .update({
+                            status: 'confirmed',
+                            amount_paid: total / (bookingData.recurrenceWeeks || 1)
+                        })
+                        .eq('recurrence_group_id', recurrenceGroupId);
                 }
+
+                console.log('Mobile Checkout: Mock payment successful!');
             }
 
+            // For cash payments, show success immediately
             setStep('success');
         } catch (error: any) {
             console.error('Booking error:', error);
