@@ -123,11 +123,12 @@ export default function ProfileScreen() {
                             <MaterialCommunityIcons name="badminton" size={14} color={Colors.dark.primary} />
                             <Text style={styles.skillText}>{getSkillLabel(player?.skill_level)}</Text>
                         </View>
-                        {player?.preferred_play_style && player.preferred_play_style !== 'All' && (
-                            <View style={styles.styleBadge}>
-                                <Text style={styles.styleText}>{player.preferred_play_style}</Text>
-                            </View>
-                        )}
+                        <View style={styles.styleBadge}>
+                            <MaterialCommunityIcons name="account-group-outline" size={14} color={Colors.dark.text} />
+                            <Text style={styles.styleText}>
+                                {(player?.preferred_play_style || 'All') === 'All' ? 'All Styles' : player?.preferred_play_style}
+                            </Text>
+                        </View>
                     </View>
                 </View>
 
@@ -157,23 +158,7 @@ export default function ProfileScreen() {
                     </View>
                 </Card>
 
-                {/* Quick Stats */}
-                <View style={styles.quickStats}>
-                    <Card variant="default" padding="md" style={styles.quickStatCard}>
-                        <View style={[styles.quickStatIcon, { backgroundColor: Colors.dark.success + '20' }]}>
-                            <Ionicons name="flame" size={20} color={Colors.dark.success} />
-                        </View>
-                        <Text style={styles.quickStatValue}>{player?.current_win_streak || 0}</Text>
-                        <Text style={styles.quickStatLabel}>Win Streak</Text>
-                    </Card>
-                    <Card variant="default" padding="md" style={styles.quickStatCard}>
-                        <View style={[styles.quickStatIcon, { backgroundColor: Colors.dark.warning + '20' }]}>
-                            <Ionicons name="trophy" size={20} color={Colors.dark.warning} />
-                        </View>
-                        <Text style={styles.quickStatValue}>{player?.max_win_streak || 0}</Text>
-                        <Text style={styles.quickStatLabel}>Best Streak</Text>
-                    </Card>
-                </View>
+
 
                 {/* Menu Items */}
                 <View style={styles.menu}>
@@ -299,6 +284,9 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     styleBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
         backgroundColor: Colors.dark.surface,
         paddingHorizontal: Spacing.md,
         paddingVertical: Spacing.xs,
@@ -335,31 +323,8 @@ const styles = StyleSheet.create({
         height: 40,
         backgroundColor: Colors.dark.border,
     },
-    quickStats: {
-        flexDirection: 'row',
-        gap: Spacing.md,
-        marginBottom: Spacing.xl,
-    },
-    quickStatCard: {
-        flex: 1,
-        alignItems: 'center',
-    },
-    quickStatIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: Spacing.xs,
-    },
-    quickStatValue: {
-        ...Typography.h3,
-        color: Colors.dark.text,
-    },
-    quickStatLabel: {
-        ...Typography.caption,
-        color: Colors.dark.textSecondary,
-    },
+
+
     menu: {
         marginBottom: Spacing.lg,
     },
