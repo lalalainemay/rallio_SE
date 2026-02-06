@@ -26,7 +26,7 @@ export default function SignupScreen() {
     const [phone, setPhone] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    const { signUp, isLoading } = useAuthStore();
+    const { signUp, signInWithGoogle, isLoading } = useAuthStore();
 
     const validate = () => {
         const newErrors: Record<string, string> = {};
@@ -71,6 +71,18 @@ export default function SignupScreen() {
                 'We sent you a verification link. Please check your email to continue.',
                 [{ text: 'OK', onPress: () => router.replace('/login') }]
             );
+        }
+    };
+
+    const handleGoogleSignup = async () => {
+        const { error } = await signInWithGoogle();
+
+        if (error) {
+            if (error.message !== 'Sign in was cancelled') {
+                Alert.alert('Google Signup Failed', error.message);
+            }
+        } else {
+            router.replace('/(tabs)');
         }
     };
 
@@ -176,6 +188,24 @@ export default function SignupScreen() {
                             {' '}and{' '}
                             <Text style={styles.termsLink}>Privacy Policy</Text>
                         </Text>
+
+                        {/* Divider */}
+                        <View style={styles.divider}>
+                            <View style={styles.dividerLine} />
+                            <Text style={styles.dividerText}>or continue with</Text>
+                            <View style={styles.dividerLine} />
+                        </View>
+
+                        {/* Google Signup */}
+                        <Button
+                            variant="secondary"
+                            fullWidth
+                            onPress={handleGoogleSignup}
+                            disabled={isLoading}
+                        >
+                            <Ionicons name="logo-google" size={20} color={Colors.dark.text} style={{ marginRight: 8 }} />
+                            Continue with Google
+                        </Button>
                     </Card>
 
                     {/* Login Link */}
@@ -260,5 +290,20 @@ const styles = StyleSheet.create({
         ...Typography.body,
         color: Colors.dark.primary,
         fontWeight: '600',
+    },
+    divider: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: Spacing.lg,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: Colors.dark.border,
+    },
+    dividerText: {
+        ...Typography.caption,
+        color: Colors.dark.textTertiary,
+        marginHorizontal: Spacing.md,
     },
 });

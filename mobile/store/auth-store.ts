@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 // SSR-safe storage adapter for Zustand
 const getZustandStorage = (): StateStorage => {
@@ -63,6 +65,7 @@ interface AuthState {
 interface AuthActions {
     initialize: () => Promise<void>;
     signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+    signInWithGoogle: () => Promise<{ error: Error | null }>;
     signUp: (email: string, password: string, metadata: { firstName: string; lastName: string; phone?: string }) => Promise<{ error: Error | null }>;
     signOut: () => Promise<void>;
     setSession: (session: Session | null) => void;
@@ -139,6 +142,120 @@ export const useAuthStore = create<AuthStore>()(
                 set({ isLoading: false });
 
                 return { error: null };
+            },
+
+            signInWithGoogle: async () => {
+                set({ isLoading: true });
+
+                try {
+                    // Create the redirect URL using the app's custom scheme
+                    const redirectUrl = Linking.createURL('auth/callback');
+                    console.log('🔍 [Google Auth] Redirect URL:', redirectUrl);
+
+                    // Get the OAuth URL from Supabase
+                    const { data, error } = await supabase.auth.signInWithOAuth({
+                        provider: 'google',
+                        options: {
+                            redirectTo: redirectUrl,
+                            skipBrowserRedirect: true, // We'll handle the redirect ourselves
+                            queryParams: {
+                                access_type: 'offline',
+                                prompt: 'consent',
+                            },
+                        },
+                    });
+
+                    if (error) {
+                        console.error('❌ [Google Auth] OAuth error:', error);
+                        set({ isLoading: false });
+                        return { error };
+                    }
+
+                    if (!data.url) {
+                        set({ isLoading: false });
+                        return { error: new Error('No OAuth URL returned') };
+                    }
+
+                    console.log('🔍 [Google Auth] Opening browser...');
+
+                    // Open the OAuth URL in a web browser
+                    const result = await WebBrowser.openAuthSessionAsync(
+                        data.url,
+                        redirectUrl
+                    );
+
+                    console.log('🔍 [Google Auth] Browser result:', result);
+
+                    if (result.type === 'success' && result.url) {
+                        // Parse the URL to get the tokens
+                        const url = new URL(result.url);
+
+                        // Supabase returns tokens in the fragment (hash) for PKCE flow
+                        const hashParams = new URLSearchParams(url.hash.substring(1));
+                        const accessToken = hashParams.get('access_token');
+                        const refreshToken = hashParams.get('refresh_token');
+
+                        // Also check query params (for code flow)
+                        const code = url.searchParams.get('code');
+
+                        if (accessToken && refreshToken) {
+                            // Set the session directly with the tokens
+                            const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+                                access_token: accessToken,
+                                refresh_token: refreshToken,
+                            });
+
+                            if (sessionError) {
+                                console.error('❌ [Google Auth] Session error:', sessionError);
+                                set({ isLoading: false });
+                                return { error: sessionError };
+                            }
+
+                            if (sessionData.session) {
+                                set({
+                                    session: sessionData.session,
+                                    user: sessionData.user,
+                                });
+                                await get().fetchProfile();
+                            }
+                        } else if (code) {
+                            // Exchange code for session (PKCE flow)
+                            const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+
+                            if (sessionError) {
+                                console.error('❌ [Google Auth] Code exchange error:', sessionError);
+                                set({ isLoading: false });
+                                return { error: sessionError };
+                            }
+
+                            if (sessionData.session) {
+                                set({
+                                    session: sessionData.session,
+                                    user: sessionData.user,
+                                });
+                                await get().fetchProfile();
+                            }
+                        } else {
+                            console.error('❌ [Google Auth] No tokens or code in callback URL');
+                            set({ isLoading: false });
+                            return { error: new Error('Failed to get authentication tokens') };
+                        }
+
+                        set({ isLoading: false });
+                        return { error: null };
+                    } else if (result.type === 'cancel') {
+                        console.log('🔍 [Google Auth] User cancelled');
+                        set({ isLoading: false });
+                        return { error: new Error('Sign in was cancelled') };
+                    }
+
+                    set({ isLoading: false });
+                    return { error: new Error('Authentication failed') };
+                } catch (err) {
+                    console.error('❌ [Google Auth] Unexpected error:', err);
+                    set({ isLoading: false });
+                    return { error: err instanceof Error ? err : new Error('An unexpected error occurred') };
+                }
             },
 
             signUp: async (email, password, metadata) => {

@@ -23,7 +23,7 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
-    const { signIn, isLoading } = useAuthStore();
+    const { signIn, signInWithGoogle, isLoading } = useAuthStore();
 
     const validate = () => {
         const newErrors: typeof errors = {};
@@ -51,6 +51,19 @@ export default function LoginScreen() {
 
         if (error) {
             Alert.alert('Login Failed', error.message);
+        } else {
+            router.replace('/(tabs)');
+        }
+    };
+
+    const handleGoogleLogin = async () => {
+        const { error } = await signInWithGoogle();
+
+        if (error) {
+            // Don't show alert for cancelled - it's expected user behavior
+            if (error.message !== 'Sign in was cancelled') {
+                Alert.alert('Google Login Failed', error.message);
+            }
         } else {
             router.replace('/(tabs)');
         }
@@ -127,7 +140,8 @@ export default function LoginScreen() {
                         <Button
                             variant="secondary"
                             fullWidth
-                            onPress={() => Alert.alert('Coming Soon', 'Google login will be available soon')}
+                            onPress={handleGoogleLogin}
+                            disabled={isLoading}
                         >
                             <Ionicons name="logo-google" size={20} color={Colors.dark.text} style={{ marginRight: 8 }} />
                             Google
