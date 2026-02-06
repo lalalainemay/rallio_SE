@@ -90,8 +90,9 @@ export default function SetupProfilePage() {
           .eq('id', user.id)
           .single()
 
-        // If profile is already completed, redirect to home
-        if (profile?.profile_completed) {
+        // If profile is already completed and NOT coming from reminder, redirect to home
+        // When coming from reminder, allow user to edit their profile
+        if (profile?.profile_completed && !fromReminder) {
           router.push('/home')
           return
         }
@@ -190,8 +191,9 @@ export default function SetupProfilePage() {
       // Upload avatar if a new file was selected
       if (profileData.avatarFile) {
         const fileExt = profileData.avatarFile.name.split('.').pop()
-        const fileName = `${user.id}-${Date.now()}.${fileExt}`
-        const filePath = `avatars/${fileName}`
+        const fileName = `${Date.now()}.${fileExt}`
+        // Path must be {userId}/filename to match storage RLS policy
+        const filePath = `${user.id}/${fileName}`
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
@@ -438,10 +440,31 @@ export default function SetupProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number <span className="text-gray-400 font-normal ml-1">(Optional)</span>
+              </label>
               <input
                 value={profileData.phone}
-                onChange={(e) => updateProfile('phone', e.target.value)}
+                onChange={(e) => {
+                  const text = e.target.value
+                  if (text.length > 0 && !text.startsWith('+63')) {
+                    if (text.startsWith('09')) {
+                      updateProfile('phone', '+63' + text.substring(1))
+                    } else if (text.startsWith('63')) {
+                      updateProfile('phone', '+' + text)
+                    } else {
+                      updateProfile('phone', '+63')
+                    }
+                  } else {
+                    updateProfile('phone', text)
+                  }
+                }}
+                onFocus={() => {
+                  if (!profileData.phone) updateProfile('phone', '+63')
+                }}
+                onBlur={() => {
+                  if (profileData.phone === '+63') updateProfile('phone', '')
+                }}
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
             </div>

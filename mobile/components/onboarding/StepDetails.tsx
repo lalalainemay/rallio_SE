@@ -32,7 +32,7 @@ export default function StepDetails({ data, onUpdate, onNext }: StepDetailsProps
         }
     };
 
-    const isFormValid = data.firstName && data.lastName && data.phone;
+    const isFormValid = data.firstName && data.lastName; // Phone is optional
 
     return (
         <View style={styles.container}>
@@ -97,12 +97,31 @@ export default function StepDetails({ data, onUpdate, onNext }: StepDetailsProps
                     </View>
 
                     <View>
-                        <Text style={styles.label}>Phone Number</Text>
+                        <Text style={styles.label}>Phone Number <Text style={styles.optionalText}>(Optional)</Text></Text>
                         <TextInput
                             style={styles.input}
                             value={data.phone}
-                            onChangeText={(text) => onUpdate('phone', text)}
-                            placeholder="+1 234 567 8900"
+                            onChangeText={(text) => {
+                                // Enforce +63 prefix if user types
+                                if (text.length > 0 && !text.startsWith('+63')) {
+                                    if (text.startsWith('09')) {
+                                        onUpdate('phone', '+63' + text.substring(1));
+                                    } else if (text.startsWith('63')) {
+                                        onUpdate('phone', '+' + text);
+                                    } else {
+                                        onUpdate('phone', '+63');
+                                    }
+                                } else {
+                                    onUpdate('phone', text);
+                                }
+                            }}
+                            onFocus={() => {
+                                if (!data.phone) onUpdate('phone', '+63');
+                            }}
+                            onBlur={() => {
+                                if (data.phone === '+63') onUpdate('phone', '');
+                            }}
+                            placeholder="+63 9XX XXX XXXX"
                             placeholderTextColor={Colors.dark.textSecondary}
                             keyboardType="phone-pad"
                         />
@@ -208,5 +227,10 @@ const styles = StyleSheet.create({
     buttonText: {
         ...Typography.button,
         color: Colors.dark.text,
+    },
+    optionalText: {
+        ...Typography.caption,
+        color: Colors.dark.textTertiary,
+        fontWeight: '400',
     },
 });

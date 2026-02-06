@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, SafeAreaView, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth-store';
@@ -71,16 +71,17 @@ export default function SetupProfilePage() {
 
             // Upload avatar if changed
             if (formData.avatarUri && !formData.avatarUri.startsWith('http')) {
-                const fileExt = formData.avatarUri.split('.').pop();
+                const fileExt = formData.avatarUri.split('.').pop()?.toLowerCase() || 'jpeg';
                 const fileName = `${user.id}-${Date.now()}.${fileExt}`;
                 const filePath = `avatars/${fileName}`;
+                const contentType = fileExt === 'jpg' ? 'image/jpeg' : `image/${fileExt}`;
 
                 const arrayBuffer = await fetch(formData.avatarUri).then(res => res.arrayBuffer());
 
                 const { error: uploadError } = await supabase.storage
                     .from('avatars')
                     .upload(filePath, arrayBuffer, {
-                        contentType: `image/${fileExt}`,
+                        contentType,
                     });
 
                 if (uploadError) throw uploadError;
@@ -142,47 +143,51 @@ export default function SetupProfilePage() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            {step === 'intro' && (
-                <StepIntro onNext={() => setStep('details')} />
-            )}
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <SafeAreaView style={styles.container}>
+                    {step === 'intro' && (
+                        <StepIntro onNext={() => setStep('details')} />
+                    )}
 
-            {step === 'details' && (
-                <StepDetails
-                    data={formData}
-                    onUpdate={updateFormData}
-                    onNext={() => setStep('player-info')}
-                />
-            )}
+                    {step === 'details' && (
+                        <StepDetails
+                            data={formData}
+                            onUpdate={updateFormData}
+                            onNext={() => setStep('player-info')}
+                        />
+                    )}
 
-            {step === 'player-info' && (
-                <StepPlayerInfo
-                    data={formData}
-                    onUpdate={updateFormData}
-                    onNext={() => setStep('play-styles')}
-                    onBack={() => setStep('details')}
-                />
-            )}
+                    {step === 'player-info' && (
+                        <StepPlayerInfo
+                            data={formData}
+                            onUpdate={updateFormData}
+                            onNext={() => setStep('play-styles')}
+                            onBack={() => setStep('details')}
+                        />
+                    )}
 
-            {step === 'play-styles' && (
-                <StepPlayStyles
-                    selectedStyles={formData.playStyles}
-                    onToggleStyle={togglePlayStyle}
-                    onNext={() => setStep('skill-level')}
-                    onBack={() => setStep('player-info')}
-                />
-            )}
+                    {step === 'play-styles' && (
+                        <StepPlayStyles
+                            selectedStyles={formData.playStyles}
+                            onToggleStyle={togglePlayStyle}
+                            onNext={() => setStep('skill-level')}
+                            onBack={() => setStep('player-info')}
+                        />
+                    )}
 
-            {step === 'skill-level' && (
-                <StepSkillLevel
-                    skillLevel={formData.skillLevel}
-                    onSelectLevel={(level) => updateFormData('skillLevel', level)}
-                    onSubmit={handleComplete}
-                    onBack={() => setStep('play-styles')}
-                    isLoading={isLoading}
-                />
-            )}
-        </SafeAreaView>
+                    {step === 'skill-level' && (
+                        <StepSkillLevel
+                            skillLevel={formData.skillLevel}
+                            onSelectLevel={(level) => updateFormData('skillLevel', level)}
+                            onSubmit={handleComplete}
+                            onBack={() => setStep('play-styles')}
+                            isLoading={isLoading}
+                        />
+                    )}
+                </SafeAreaView>
+            </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
     );
 }
 

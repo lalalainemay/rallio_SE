@@ -126,6 +126,7 @@ function RootLayoutNav() {
         <Stack.Screen name="checkout" />
         <Stack.Screen name="queue" />
         <Stack.Screen name="map" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
 
       </Stack>
     </>
