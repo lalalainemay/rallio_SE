@@ -164,6 +164,32 @@ export default function CheckoutPage() {
                       <span className="text-gray-600">Hourly Rate:</span>
                       <span className="font-medium text-gray-900">₱{bookingData.hourlyRate.toFixed(2)}</span>
                     </div>
+
+                    {(bookingData.recurrenceWeeks && bookingData.recurrenceWeeks > 1) && (
+                      <div className="flex justify-between py-3 border-b border-gray-100">
+                        <span className="text-gray-600">Recurrence:</span>
+                        <span className="font-medium text-gray-900">{bookingData.recurrenceWeeks} weeks</span>
+                      </div>
+                    )}
+
+                    {(bookingData.selectedDays && bookingData.selectedDays.length > 1) && (
+                      <div className="flex justify-between py-3 border-b border-gray-100">
+                        <span className="text-gray-600">Sessions per Week:</span>
+                        <div className="text-right">
+                          <span className="block font-medium text-gray-900">{bookingData.selectedDays.length} sessions</span>
+                          <span className="text-xs text-gray-500">
+                            {bookingData.selectedDays.map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {((bookingData.recurrenceWeeks || 1) * (bookingData.selectedDays?.length || 1)) > 1 && (
+                      <div className="flex justify-between py-3 border-b border-gray-100 bg-gray-50 -mx-6 px-6">
+                        <span className="text-gray-600 font-medium">Total Sessions:</span>
+                        <span className="font-medium text-gray-900">{(bookingData.recurrenceWeeks || 1) * (bookingData.selectedDays?.length || 1)}</span>
+                      </div>
+                    )}
                     {discountAmount !== 0 && (
                       <div className="flex justify-between py-3 border-b border-gray-100">
                         <span className={discountAmount < 0 ? 'text-orange-600' : 'text-green-600'}>
@@ -225,6 +251,32 @@ export default function CheckoutPage() {
                       <span className="text-gray-600">Hourly Rate:</span>
                       <span className="font-medium text-gray-900">₱{bookingData.hourlyRate.toFixed(2)}</span>
                     </div>
+
+                    {(bookingData.recurrenceWeeks && bookingData.recurrenceWeeks > 1) && (
+                      <div className="flex justify-between py-3 border-b border-gray-100">
+                        <span className="text-gray-600">Recurrence:</span>
+                        <span className="font-medium text-gray-900">{bookingData.recurrenceWeeks} weeks</span>
+                      </div>
+                    )}
+
+                    {(bookingData.selectedDays && bookingData.selectedDays.length > 1) && (
+                      <div className="flex justify-between py-3 border-b border-gray-100">
+                        <span className="text-gray-600">Sessions per Week:</span>
+                        <div className="text-right">
+                          <span className="block font-medium text-gray-900">{bookingData.selectedDays.length} sessions</span>
+                          <span className="text-xs text-gray-500">
+                            {bookingData.selectedDays.map(d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d]).join(', ')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {((bookingData.recurrenceWeeks || 1) * (bookingData.selectedDays?.length || 1)) > 1 && (
+                      <div className="flex justify-between py-3 border-b border-gray-100 bg-gray-50 -mx-6 px-6">
+                        <span className="text-gray-600 font-medium">Total Sessions:</span>
+                        <span className="font-medium text-gray-900">{(bookingData.recurrenceWeeks || 1) * (bookingData.selectedDays?.length || 1)}</span>
+                      </div>
+                    )}
                     {discountAmount !== 0 && (
                       <div className="flex justify-between py-3 border-b border-gray-100">
                         <span className={discountAmount < 0 ? 'text-orange-600' : 'text-green-600'}>

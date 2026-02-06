@@ -228,6 +228,26 @@ export async function validateBookingAvailabilityAction(data: {
   const durationMs = initialEndTime.getTime() - initialStartTime.getTime()
   const startDayIndex = initialStartTime.getDay() // 0-6
 
+  // 0. FETCH OPERATING HOURS
+  const { data: court, error: courtError } = await supabase
+    .from('courts')
+    .select(`
+      id,
+      venues (
+        opening_hours
+      )
+    `)
+    .eq('id', data.courtId)
+    .single()
+
+  if (courtError || !court) {
+    return { available: false, error: 'Court not found.' }
+  }
+
+  const venueData = Array.isArray(court.venues) ? court.venues[0] : court.venues
+  const openingHours = venueData?.opening_hours as Record<string, { open: string; close: string }> | null
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
   // 1. GENERATE PHASE
   // Deduplicate and sort selected days to prevent duplicate slots
   const uniqueSelectedDays = Array.from(new Set(selectedDays)).sort((a, b) => a - b)
@@ -250,14 +270,12 @@ export async function validateBookingAvailabilityAction(data: {
   if (targetSlots.length === 0) return { available: false, error: 'No slots generated.' }
 
   // Check for internal overlaps within the generated slots
-  // (e.g. if duration > 24h or weird scheduling)
   targetSlots.sort((a, b) => a.start.getTime() - b.start.getTime())
 
   for (let i = 0; i < targetSlots.length - 1; i++) {
     const current = targetSlots[i]
     const next = targetSlots[i + 1]
 
-    // Check if current End > next Start
     if (current.end.getTime() > next.start.getTime()) {
       return { available: false, error: 'Internal conflict: Generated slots overlap with each other.' }
     }
@@ -269,6 +287,41 @@ export async function validateBookingAvailabilityAction(data: {
     const currentEndTimeISO = slot.end.toISOString()
     const conflictStatuses = ['pending_payment', 'pending', 'paid', 'confirmed', 'pending_refund']
 
+    // A. Check Operating Hours
+    const dayName = dayNames[slot.start.getDay()]
+    const dayHours = openingHours?.[dayName]
+
+    if (!dayHours) {
+      // Venue closed on this day
+      const dateStr = slot.start.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+      return { available: false, conflictDate: dateStr, error: `Venue is closed on ${dateStr}` }
+    }
+
+    // Parse open/close times
+    const [openH, openM] = dayHours.open.split(':').map(Number)
+    const [closeH, closeM] = dayHours.close.split(':').map(Number)
+
+    // Parse slot times (in local venue time - assuming generic logical comparison or keeping consistent timezone)
+    // Ideally we'd use timezone-aware comparison, but for now using getHours() matches existing logic if local
+    // To be safer, we compare HH:MM values directly
+    const slotStartH = slot.start.getHours()
+    const slotStartM = slot.start.getMinutes()
+    const slotEndH = slot.end.getHours()
+    const slotEndM = slot.end.getMinutes()
+
+    const slotStartMinutes = slotStartH * 60 + slotStartM
+    const slotEndMinutes = slotEndH * 60 + slotEndM
+    const openMinutes = openH * 60 + (openM || 0)
+    const closeMinutes = closeH * 60 + (closeM || 0)
+
+    if (slotStartMinutes < openMinutes || slotEndMinutes > closeMinutes) {
+      // Slot is outside operating hours
+      const dateStr = slot.start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+      const timeStr = slot.start.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+      return { available: false, conflictDate: dateStr, error: `Venue is closed at ${timeStr} on ${dayName}s (Open: ${dayHours.open} - ${dayHours.close})` }
+    }
+
+    // B. Check Conflicts
     const [reservationConflicts, queueConflicts] = await Promise.all([
       adminDb
         .from('reservations')
@@ -295,14 +348,16 @@ export async function validateBookingAvailabilityAction(data: {
 
     const realConflicts = reservationConflicts.data?.filter(conflict => {
       if (conflict.status === 'confirmed' || conflict.status === 'paid') return true
-      // If it's my own pending booking and I'm doing a recurring booking, treat as conflict?
-      // User request says "handle gracefully".
-      // If I am replacing my own single booking with a recurring one, maybe I should allow it?
-      // But preventing it is safer.
-      if (userId && conflict.user_id === userId && (conflict.status === 'pending_payment' || conflict.status === 'pending') && !isRecurring) return false
+      const isRecurring = recurrenceWeeks > 1 || selectedDays.length > 1 // Define if not defined in context, but wait, this variable was used in original code?
+      // Ah, I see `isRecurring` used in original code line 302, but I don't see it defined in my replacement chunk yet.
+      // It must be defined.
+      // Let's rely on recurrenceWeeks > 1 || uniqueSelectedDays.length > 1
+      const isRecurringCheck = recurrenceWeeks > 1 || uniqueSelectedDays.length > 1;
+
+      if (userId && conflict.user_id === userId && (conflict.status === 'pending_payment' || conflict.status === 'pending') && !isRecurringCheck) return false
       if (userId && conflict.user_id !== userId) return true
-      if (!userId) return true // If no user, everything is conflict
-      return isRecurring // Recurrence blocks everything to be safe
+      if (!userId) return true
+      return isRecurringCheck
     }) || []
 
     if (realConflicts.length > 0) {

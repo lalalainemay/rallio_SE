@@ -852,6 +852,29 @@ export async function createQueueSession(data: {
         if (!dayHours) {
           return { success: false, error: `Venue is closed on ${dayOfWeek} (${sessionStart.toLocaleDateString()})` }
         }
+
+        // Parse open/close times
+        const [openH, openM] = dayHours.open.split(':').map(Number)
+        const [closeH, closeM] = dayHours.close.split(':').map(Number)
+
+        const sessionStartH = sessionStart.getHours()
+        const sessionStartM = sessionStart.getMinutes()
+        const sessionEndH = sessionEnd.getHours()
+        const sessionEndM = sessionEnd.getMinutes()
+
+        const sessionStartMinutes = sessionStartH * 60 + sessionStartM
+        const sessionEndMinutes = sessionEndH * 60 + sessionEndM
+        const openMinutes = openH * 60 + (openM || 0)
+        const closeMinutes = closeH * 60 + (closeM || 0)
+
+        // Allow tight fitting? Usually yes.
+        if (sessionStartMinutes < openMinutes || sessionEndMinutes > closeMinutes) {
+          const timeStr = sessionStart.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+          return {
+            success: false,
+            error: `Venue is closed at ${timeStr} on ${dayOfWeek}s (Open: ${dayHours.open} - ${dayHours.close})`
+          }
+        }
       }
 
       // Check conflicts
@@ -930,7 +953,7 @@ export async function createQueueSession(data: {
       if (insertError || !session) {
         // Rollback reservation
         await supabase.from('reservations').delete().eq('id', reservation.id)
-        return { success: false, error: `Failed to create session for week ${i + 1}` }
+        return { success: false, error: `Failed to create session for ${sessionStart.toLocaleDateString()}` }
       }
 
       createdSessions.push({
