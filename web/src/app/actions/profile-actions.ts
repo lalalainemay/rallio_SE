@@ -147,38 +147,44 @@ export async function updatePlayerProfile(data: {
     } else {
       console.log('[updatePlayerProfile] Player record found, updating')
 
-      // Skill level change restrictions
+      // Skill level change restrictions (only apply if already set)
       if (data.skillLevel !== undefined && data.skillLevel !== existingPlayer.skill_level) {
-        const oldLevel = existingPlayer.skill_level || 5
+        const oldLevel = existingPlayer.skill_level
         const newLevel = data.skillLevel
-        const levelDiff = Math.abs(newLevel - oldLevel)
 
-        // Restriction 1: Can't change more than ±2 levels at once
-        if (levelDiff > 2) {
-          return {
-            success: false,
-            error: `Skill level can only be adjusted by ±2 levels at a time. Current: ${oldLevel}, Requested: ${newLevel}`
-          }
-        }
+        // Skip restrictions for first-time setup (when skill_level is NULL)
+        if (oldLevel !== null) {
+          const levelDiff = Math.abs(newLevel - oldLevel)
 
-        // Restriction 2: 30-day cooldown between changes
-        const lastChanged = existingPlayer.skill_level_updated_at
-        if (lastChanged) {
-          const daysSinceLastChange = Math.floor(
-            (Date.now() - new Date(lastChanged).getTime()) / (1000 * 60 * 60 * 24)
-          )
-          const cooldownDays = 30
-
-          if (daysSinceLastChange < cooldownDays) {
-            const daysRemaining = cooldownDays - daysSinceLastChange
+          // Restriction 1: Can't change more than ±2 levels at once
+          if (levelDiff > 2) {
             return {
               success: false,
-              error: `Skill level can only be changed once every ${cooldownDays} days. You can change it again in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}.`
+              error: `Skill level can only be adjusted by ±2 levels at a time. Current: ${oldLevel}, Requested: ${newLevel}`
             }
           }
-        }
 
-        console.log('[updatePlayerProfile] Skill level change approved:', { oldLevel, newLevel, levelDiff })
+          // Restriction 2: 30-day cooldown between changes
+          const lastChanged = existingPlayer.skill_level_updated_at
+          if (lastChanged) {
+            const daysSinceLastChange = Math.floor(
+              (Date.now() - new Date(lastChanged).getTime()) / (1000 * 60 * 60 * 24)
+            )
+            const cooldownDays = 30
+
+            if (daysSinceLastChange < cooldownDays) {
+              const daysRemaining = cooldownDays - daysSinceLastChange
+              return {
+                success: false,
+                error: `Skill level can only be changed once every ${cooldownDays} days. You can change it again in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}.`
+              }
+            }
+          }
+
+          console.log('[updatePlayerProfile] Skill level change approved:', { oldLevel, newLevel, levelDiff })
+        } else {
+          console.log('[updatePlayerProfile] First-time skill level setup, skipping restrictions:', { newLevel })
+        }
       }
 
       // Update existing player data
@@ -188,10 +194,14 @@ export async function updatePlayerProfile(data: {
         play_style: data.playStyle,
       }
 
-      // Only update skill_level and timestamp if it's actually changing
+      // Only update skill_level, rating, and timestamp if skill_level is actually changing
       if (data.skillLevel !== undefined && data.skillLevel !== existingPlayer.skill_level) {
         updateData.skill_level = data.skillLevel
         updateData.skill_level_updated_at = new Date().toISOString()
+        // Always update rating when skill level changes
+        if (data.rating !== undefined) {
+          updateData.rating = data.rating
+        }
       }
 
       const updateResult = await supabase

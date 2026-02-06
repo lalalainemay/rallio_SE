@@ -72,8 +72,9 @@ export default function SetupProfilePage() {
             // Upload avatar if changed
             if (formData.avatarUri && !formData.avatarUri.startsWith('http')) {
                 const fileExt = formData.avatarUri.split('.').pop()?.toLowerCase() || 'jpeg';
-                const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-                const filePath = `avatars/${fileName}`;
+                const fileName = `${Date.now()}.${fileExt}`;
+                // Path must be {userId}/filename to match storage RLS policy
+                const filePath = `${user.id}/${fileName}`;
                 const contentType = fileExt === 'jpg' ? 'image/jpeg' : `image/${fileExt}`;
 
                 const arrayBuffer = await fetch(formData.avatarUri).then(res => res.arrayBuffer());
@@ -98,9 +99,10 @@ export default function SetupProfilePage() {
                 .from('profiles')
                 .update({
                     first_name: formData.firstName,
+                    middle_initial: formData.middleInitial || null,
                     last_name: formData.lastName,
                     display_name: `${formData.firstName} ${formData.lastName}`,
-                    phone: formData.phone,
+                    phone: formData.phone || null,
                     avatar_url: avatarUrl,
                     profile_completed: true,
                 })

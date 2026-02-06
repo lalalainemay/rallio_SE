@@ -65,10 +65,10 @@ export default async function HomePage() {
   // Logic: Check if critical fields are actually filled.
   // We ignore profile_completed flag for the banner display because users might have skipped it.
   // We want to remind them if they are missing critical info.
+  // Birth date is optional, so we only require display_name and skill_level
   const isProfileTrulyComplete =
     !!userProfile?.display_name &&
-    !!playerProfile?.skill_level &&
-    !!playerProfile?.birth_date
+    !!playerProfile?.skill_level
 
   return (
     <div className="min-h-screen bg-white">
