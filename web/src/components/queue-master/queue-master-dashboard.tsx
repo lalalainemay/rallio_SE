@@ -5,7 +5,7 @@ import { getMyQueueMasterSessions, getQueueMasterStats } from '@/app/actions/que
 import { Plus, Calendar, TrendingUp, DollarSign, Users, Clock, PlayCircle, CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 
-type SessionStatus = 'active' | 'upcoming' | 'past'
+type SessionStatus = 'active' | 'pending' | 'past'
 
 interface SessionData {
   id: string
@@ -30,7 +30,7 @@ interface DashboardStats {
   activeSessions: number
   counts: {
     active: number
-    upcoming: number
+    pending: number
     past: number
   }
 }
@@ -44,7 +44,7 @@ export function QueueMasterDashboard() {
     activeSessions: 0,
     counts: {
       active: 0,
-      upcoming: 0,
+      pending: 0,
       past: 0
     }
   })
@@ -185,13 +185,13 @@ export function QueueMasterDashboard() {
           Active ({stats.counts.active})
         </button>
         <button
-          onClick={() => setFilter('upcoming')}
-          className={`px-6 py-2 rounded-lg font-medium transition-colors ${filter === 'upcoming'
+          onClick={() => setFilter('pending')}
+          className={`px-6 py-2 rounded-lg font-medium transition-colors ${filter === 'pending'
             ? 'bg-primary text-white shadow-sm'
             : 'text-gray-600 hover:bg-gray-100'
             }`}
         >
-          Upcoming ({stats.counts.upcoming})
+          Pending ({stats.counts.pending})
         </button>
         <button
           onClick={() => setFilter('past')}
@@ -208,7 +208,7 @@ export function QueueMasterDashboard() {
       <div>
         <h2 className="text-xl font-bold text-gray-900 mb-4">
           {filter === 'active' && 'Active Sessions'}
-          {filter === 'upcoming' && 'Upcoming Sessions'}
+          {filter === 'pending' && 'Pending Sessions'}
           {filter === 'past' && 'Past Sessions'}
         </h2>
 

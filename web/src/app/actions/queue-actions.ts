@@ -1861,7 +1861,7 @@ export async function markAsPaid(
  * Get all queue sessions created by current user (Queue Master)
  */
 export async function getMyQueueMasterSessions(filter?: {
-  status?: 'active' | 'upcoming' | 'past'
+  status?: 'active' | 'pending' | 'past'
 }): Promise<{
   success: boolean
   sessions?: Array<QueueSessionData & { participants: QueueParticipantData[] }>
@@ -1899,9 +1899,11 @@ export async function getMyQueueMasterSessions(filter?: {
 
     // Apply status filter
     if (filter?.status === 'active') {
-      query = query.in('status', ['open', 'active', 'paused'])
-    } else if (filter?.status === 'upcoming') {
-      query = query.eq('status', 'open').gt('start_time', new Date().toISOString())
+      // Active: sessions that are currently running (active or paused)
+      query = query.in('status', ['active', 'paused'])
+    } else if (filter?.status === 'pending') {
+      // Pending: sessions that are open but not yet started (waiting for players or start time)
+      query = query.eq('status', 'open')
     } else if (filter?.status === 'past') {
       query = query.in('status', ['closed', 'cancelled'])
     }
@@ -1928,8 +1930,8 @@ export async function getMyQueueMasterSessions(filter?: {
             if (error) console.error('Failed to auto-close expired session:', session.id, error)
           })
 
-          // If filtering for active, exclude this
-          if (filter?.status === 'active' || filter?.status === 'upcoming') {
+          // If filtering for active or pending, exclude expired sessions
+          if (filter?.status === 'active' || filter?.status === 'pending') {
             return false
           }
         }
@@ -2032,7 +2034,7 @@ export async function getQueueMasterStats(): Promise<{
     activeSessions: number
     counts: {
       active: number
-      upcoming: number
+      pending: number
       past: number
     }
   }
@@ -2078,7 +2080,7 @@ export async function getQueueMasterStats(): Promise<{
 
     // Categorize sessions
     let activeCount = 0
-    let upcomingCount = 0
+    let pendingCount = 0
     let pastCount = 0
 
     let totalRevenue = 0
@@ -2104,15 +2106,11 @@ export async function getQueueMasterStats(): Promise<{
 
       if (['closed', 'cancelled', 'rejected', 'completed', 'expired'].includes(effectiveStatus)) {
         pastCount++
-      } else if (['draft'].includes(effectiveStatus)) {
-        upcomingCount++
-      } else if (effectiveStatus === 'open') {
-        if (isFuture) {
-          upcomingCount++
-        } else {
-          activeCount++
-        }
+      } else if (['draft', 'open'].includes(effectiveStatus)) {
+        // Pending: sessions that are open but not yet active
+        pendingCount++
       } else if (['active', 'paused', 'pending_approval'].includes(effectiveStatus)) {
+        // Active: sessions that are currently running
         activeCount++
       }
 
@@ -2137,7 +2135,7 @@ export async function getQueueMasterStats(): Promise<{
         activeSessions: activeCount, // Backward compatibility
         counts: {
           active: activeCount,
-          upcoming: upcomingCount,
+          pending: pendingCount,
           past: pastCount
         }
       }
