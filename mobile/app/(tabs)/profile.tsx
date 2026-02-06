@@ -119,16 +119,17 @@ export default function ProfileScreen() {
                     )}
 
                     <View style={styles.badgeRow}>
-                        <View style={styles.skillBadge}>
-                            <MaterialCommunityIcons name="badminton" size={14} color={Colors.dark.primary} />
-                            <Text style={styles.skillText}>{getSkillLabel(player?.skill_level)}</Text>
+                        <View style={[styles.tag, styles.skillTag]}>
+                            <MaterialCommunityIcons name="badminton" size={12} color={Colors.dark.primary} />
+                            <Text style={[styles.tagText, styles.skillTagText]}>{getSkillLabel(player?.skill_level)}</Text>
                         </View>
-                        <View style={styles.styleBadge}>
-                            <MaterialCommunityIcons name="account-group-outline" size={14} color={Colors.dark.text} />
-                            <Text style={styles.styleText}>
-                                {(player?.preferred_play_style || 'All') === 'All' ? 'All Styles' : player?.preferred_play_style}
-                            </Text>
-                        </View>
+                        {(player?.play_style || player?.preferred_play_style || 'All').split(',').map((style, index) => (
+                            <View key={index} style={styles.tag}>
+                                <Text style={styles.tagText}>
+                                    {style === 'All' ? 'All Styles' : style}
+                                </Text>
+                            </View>
+                        ))}
                     </View>
                 </View>
 
@@ -266,39 +267,38 @@ const styles = StyleSheet.create({
     },
     badgeRow: {
         flexDirection: 'row',
-        gap: Spacing.sm,
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: 8,
         marginTop: Spacing.md,
+        paddingHorizontal: Spacing.lg,
     },
-    skillBadge: {
+    tag: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: Colors.dark.primary + '20',
-        paddingHorizontal: Spacing.md,
-        paddingVertical: Spacing.xs,
-        borderRadius: Radius.full,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 100,
+        borderWidth: 1,
+        borderColor: Colors.dark.border,
+        backgroundColor: Colors.dark.surface,
     },
-    skillText: {
-        ...Typography.bodySmall,
+    skillTag: {
+        backgroundColor: Colors.dark.primary + '10',
+        borderColor: Colors.dark.primary + '20',
+    },
+    tagText: {
+        fontSize: 12,
+        color: Colors.dark.textSecondary,
+    },
+    skillTagText: {
+        fontSize: 12,
         color: Colors.dark.primary,
         fontWeight: '600',
     },
-    styleBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: Colors.dark.surface,
-        paddingHorizontal: Spacing.md,
-        paddingVertical: Spacing.xs,
-        borderRadius: Radius.full,
-        borderWidth: 1,
-        borderColor: Colors.dark.border,
-    },
-    styleText: {
-        ...Typography.bodySmall,
-        color: Colors.dark.text,
-    },
     statsCard: {
+        marginTop: Spacing.sm,
         marginBottom: Spacing.md,
     },
     statsRow: {

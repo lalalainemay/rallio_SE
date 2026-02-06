@@ -26,7 +26,18 @@ const SKILL_LEVELS_DISPLAY = {
     10: { label: 'Expert', description: 'ELO 2100+' },
 };
 
-const PLAY_STYLES = ['Singles', 'Doubles', 'Mixed Doubles', 'All'];
+const PLAY_STYLES = [
+    'Singles',
+    'Doubles',
+    'Mixed Doubles',
+    'Attacking / Speed',
+    'Defensive',
+    'All-Round',
+    'Deceptive',
+    'Control',
+    'Net-Play Specialist',
+    'All'
+];
 
 export default function EditProfileScreen() {
     const { user, profile, player, fetchProfile } = useAuthStore();
@@ -36,8 +47,34 @@ export default function EditProfileScreen() {
     const [displayName, setDisplayName] = useState(profile?.display_name || '');
     const [bio, setBio] = useState(profile?.bio || '');
     const [skillLevel, setSkillLevel] = useState(player?.skill_level || 3);
-    const [preferredStyle, setPreferredStyle] = useState(player?.preferred_play_style || 'All');
+
+    // Parse initial styles from play_style (CSV) or fall back to preferred_play_style
+    const initialStyles = player?.play_style
+        ? player.play_style.split(',')
+        : player?.preferred_play_style
+            ? [player.preferred_play_style]
+            : [];
+
+    const [selectedStyles, setSelectedStyles] = useState<string[]>(initialStyles);
     const [isSaving, setIsSaving] = useState(false);
+
+    const toggleStyle = (style: string) => {
+        if (style === 'All') {
+            setSelectedStyles(['All']);
+            return;
+        }
+
+        setSelectedStyles(prev => {
+            // If 'All' was selected, clear it
+            let newStyles = prev.filter(s => s !== 'All');
+
+            if (newStyles.includes(style)) {
+                return newStyles.filter(s => s !== style);
+            } else {
+                return [...newStyles, style];
+            }
+        });
+    };
 
     const handleSave = async () => {
         if (!user) return;
@@ -45,13 +82,14 @@ export default function EditProfileScreen() {
         setIsSaving(true);
         try {
             // Update profile
+            // Note: 'bio' column might be missing in schema, removing it for now based on error
             const { error: profileError } = await supabase
                 .from('profiles')
                 .update({
                     first_name: firstName.trim(),
                     last_name: lastName.trim(),
                     display_name: displayName.trim() || `${firstName} ${lastName}`.trim(),
-                    bio: bio.trim(),
+                    // bio: bio.trim(), // Commented out due to schema error "Could not find the 'bio' column"
                     updated_at: new Date().toISOString(),
                 })
                 .eq('id', user.id);
@@ -59,10 +97,13 @@ export default function EditProfileScreen() {
             if (profileError) throw profileError;
 
             // Update player stats
+            const playStyleCSV = selectedStyles.join(',');
+
             const { error: playerError } = await supabase
                 .from('players')
                 .update({
-                    preferred_play_style: preferredStyle,
+                    play_style: playStyleCSV,
+                    preferred_play_style: selectedStyles[0] || 'All', // Keep legacy column synced with primary
                     updated_at: new Date().toISOString(),
                 })
                 .eq('user_id', user.id);
@@ -196,23 +237,26 @@ export default function EditProfileScreen() {
                         {/* Preferred Play Style */}
                         <Text style={[styles.inputLabel, { marginTop: Spacing.lg }]}>Preferred Play Style</Text>
                         <View style={styles.styleGrid}>
-                            {PLAY_STYLES.map((style) => (
-                                <TouchableOpacity
-                                    key={style}
-                                    style={[
-                                        styles.styleOption,
-                                        preferredStyle === style && styles.styleOptionSelected
-                                    ]}
-                                    onPress={() => setPreferredStyle(style)}
-                                >
-                                    <Text style={[
-                                        styles.styleText,
-                                        preferredStyle === style && styles.styleTextSelected
-                                    ]}>
-                                        {style}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
+                            {PLAY_STYLES.map((style) => {
+                                const isSelected = selectedStyles.includes(style);
+                                return (
+                                    <TouchableOpacity
+                                        key={style}
+                                        style={[
+                                            styles.styleOption,
+                                            isSelected && styles.styleOptionSelected
+                                        ]}
+                                        onPress={() => toggleStyle(style)}
+                                    >
+                                        <Text style={[
+                                            styles.styleText,
+                                            isSelected && styles.styleTextSelected
+                                        ]}>
+                                            {style}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
                         </View>
                     </View>
 
