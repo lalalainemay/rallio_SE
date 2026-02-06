@@ -72,11 +72,11 @@ export default function HomeScreen() {
         </View>
 
         {/* Complete Profile Reminder */}
-        {!profile?.profile_completed && (
-          <Card variant="filled" padding="md" style={styles.reminderCard}>
+        {(!profile?.profile_completed || !player?.skill_level) && (
+          <Card variant="default" padding="md" style={styles.reminderCard}>
             <View style={styles.reminderHeader}>
               <View style={styles.reminderIconWrapper}>
-                <Ionicons name="person-outline" size={20} color="white" />
+                <Ionicons name="person-outline" size={20} color={Colors.dark.primary} />
               </View>
               <Text style={styles.reminderTitle}>Complete Your Profile</Text>
 
@@ -90,7 +90,7 @@ export default function HomeScreen() {
               activeOpacity={0.9}
             >
               <Text style={styles.reminderButtonText}>Complete Setup</Text>
-              <Ionicons name="chevron-forward" size={16} color={Colors.dark.primary} />
+              <Ionicons name="chevron-forward" size={16} color="white" />
             </TouchableOpacity>
           </Card>
         )}
@@ -417,9 +417,11 @@ const styles = StyleSheet.create({
     color: Colors.dark.textSecondary,
   },
   reminderCard: {
-    backgroundColor: '#1E9E88', // Green teal color from screenshot
+    backgroundColor: Colors.dark.surface,
     marginBottom: Spacing.xl,
     borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.dark.border,
   },
   reminderHeader: {
     flexDirection: 'row',
@@ -430,36 +432,37 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: Colors.dark.primary + '20',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.sm,
   },
   reminderTitle: {
     ...Typography.h4,
-    color: 'white',
+    color: Colors.dark.text,
     flex: 1,
     fontWeight: '700',
   },
   reminderText: {
     ...Typography.bodySmall,
-    color: 'rgba(255,255,255,0.9)',
+    color: Colors.dark.textSecondary,
     marginBottom: Spacing.md,
-    lineHeight: 18,
+    lineHeight: 20,
   },
   reminderButton: {
-    backgroundColor: 'white',
+    backgroundColor: Colors.dark.primary,
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: Radius.md,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: Radius.full,
     gap: 4,
   },
   reminderButtonText: {
     ...Typography.caption,
-    color: '#1E9E88', // Match card bg
+    fontSize: 14,
+    color: 'white',
     fontWeight: '600',
   },
 });
