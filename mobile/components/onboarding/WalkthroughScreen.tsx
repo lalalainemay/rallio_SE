@@ -149,7 +149,7 @@ interface OnboardingScreenProps {
     onComplete: () => void;
 }
 
-export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
+export default function WalkthroughScreen({ onComplete }: OnboardingScreenProps) {
     const insets = useSafeAreaInsets();
     const flatListRef = useRef<FlatList>(null);
     const scrollX = useSharedValue(0);

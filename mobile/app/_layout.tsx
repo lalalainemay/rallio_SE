@@ -10,7 +10,7 @@ import 'react-native-reanimated';
 import { Colors } from '@/constants/Colors';
 import { useAuthStore } from '@/store/auth-store';
 import { useOnboardingStore } from '@/store/onboarding-store';
-import OnboardingScreen from '@/components/onboarding/OnboardingScreen';
+import WalkthroughScreen from '@/components/onboarding/WalkthroughScreen';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -69,7 +69,7 @@ export default function RootLayout() {
     return (
       <>
         <StatusBar style="light" />
-        <OnboardingScreen onComplete={handleOnboardingComplete} />
+        <WalkthroughScreen onComplete={handleOnboardingComplete} />
       </>
     );
   }
@@ -93,6 +93,16 @@ function RootLayoutNav() {
     } else if (user && inAuthGroup) {
       // Redirect to home if authenticated
       router.replace('/(tabs)');
+    } else if (user && !isLoading) {
+      // Check for incomplete profile
+      const { profile } = useAuthStore.getState();
+      if (profile && !profile.profile_completed) {
+        const isOnboarding = segments[0] === '(onboarding)';
+        if (!isOnboarding) {
+          router.replace('/(onboarding)/setup-profile');
+        }
+      }
+
     }
   }, [user, segments, isLoading]);
 
