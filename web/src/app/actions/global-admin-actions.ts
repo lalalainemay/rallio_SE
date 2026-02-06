@@ -2,11 +2,16 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { type User } from '@supabase/supabase-js'
+
+type VerifyAdminResult =
+  | { success: true; user: User }
+  | { success: false; error: string }
 
 /**
  * Verify user has global_admin role
  */
-async function verifyGlobalAdmin() {
+async function verifyGlobalAdmin(): Promise<VerifyAdminResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -33,7 +38,7 @@ async function verifyGlobalAdmin() {
  */
 export async function getDashboardStats() {
   const auth = await verifyGlobalAdmin()
-  if (!auth.success) return auth
+  if (!auth.success) return { success: false, error: auth.error }
 
   const supabase = await createClient()
 
@@ -124,7 +129,7 @@ export async function getDashboardStats() {
  */
 export async function getRecentActivity() {
   const auth = await verifyGlobalAdmin()
-  if (!auth.success) return auth
+  if (!auth.success) return { success: false, error: auth.error }
 
   const supabase = await createClient()
 
@@ -175,7 +180,7 @@ export async function logAdminAction(params: {
   newValue?: any
 }) {
   const auth = await verifyGlobalAdmin()
-  if (!auth.success) return auth
+  if (!auth.success) return { success: false, error: auth.error }
 
   const supabase = await createClient()
 
@@ -207,7 +212,7 @@ export async function getGlobalQueueHistory(filters?: {
   limit?: number
 }) {
   const auth = await verifyGlobalAdmin()
-  if (!auth.success) return auth
+  if (!auth.success) return { success: false, error: auth.error }
 
   const supabase = await createClient()
 
