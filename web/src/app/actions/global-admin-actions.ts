@@ -20,7 +20,7 @@ async function verifyGlobalAdmin() {
     .eq('user_id', user.id)
 
   const isGlobalAdmin = roles?.some((r: any) => r.roles?.name === 'global_admin')
-  
+
   if (!isGlobalAdmin) {
     return { success: false, error: 'Requires global admin role' }
   }
@@ -74,7 +74,7 @@ export async function getDashboardStats() {
       .eq('status', 'completed')
       .gte('created_at', thirtyDaysAgo.toISOString())
 
-    const monthlyRevenue = revenueData?.reduce((sum, payment) => 
+    const monthlyRevenue = revenueData?.reduce((sum, payment) =>
       sum + parseFloat(payment.amount || '0'), 0
     ) || 0
 
@@ -192,6 +192,86 @@ export async function logAdminAction(params: {
     return { success: true }
   } catch (error: any) {
     console.error('[logAdminAction] Error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
+ * Get system-wide queue session history
+ */
+export async function getGlobalQueueHistory(filters?: {
+  venueId?: string
+  status?: string
+  startDate?: string
+  endDate?: string
+  limit?: number
+}) {
+  const auth = await verifyGlobalAdmin()
+  if (!auth.success) return auth
+
+  const supabase = await createClient()
+
+  try {
+    let query = supabase
+      .from('queue_sessions')
+      .select(`
+        *,
+        court:courts!inner(
+          id,
+          name,
+          venue:venues!inner(
+            id,
+            name
+          )
+        ),
+        organizer:profiles!inner(
+          display_name,
+          email
+        )
+      `)
+      .order('start_time', { ascending: false })
+      .limit(filters?.limit || 50)
+
+    // Apply filters
+    if (filters?.venueId && filters.venueId !== 'all') {
+      query = query.eq('court.venue_id', filters.venueId)
+    }
+    if (filters?.status && filters.status !== 'all') {
+      query = query.eq('status', filters.status)
+    } else {
+      // Default to closed/cancelled if not specified, or show all? 
+      // Admin might want to see active too. Let's show all by default but sort by date.
+    }
+    if (filters?.startDate) {
+      query = query.gte('start_time', filters.startDate)
+    }
+    if (filters?.endDate) {
+      query = query.lte('start_time', filters.endDate)
+    }
+
+    const { data: sessions, error } = await query
+
+    if (error) throw error
+
+    // Format for display
+    const formattedSessions = sessions?.map(s => ({
+      id: s.id,
+      venueName: s.court?.venue?.name,
+      courtName: s.court?.name,
+      organizerName: s.organizer?.display_name || 'Unknown',
+      startTime: new Date(s.start_time),
+      endTime: new Date(s.end_time),
+      status: s.status,
+      maxPlayers: s.max_players,
+      costPerGame: s.cost_per_game,
+      totalRevenue: s.settings?.summary?.totalRevenue || 0,
+      totalGames: s.settings?.summary?.totalGames || 0,
+      closedBy: s.settings?.summary?.closedBy || 'unknown',
+    }))
+
+    return { success: true, sessions: formattedSessions }
+  } catch (error: any) {
+    console.error('[getGlobalQueueHistory] Error:', error)
     return { success: false, error: error.message }
   }
 }

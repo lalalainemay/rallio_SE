@@ -47,6 +47,7 @@ export function CourtAdminSidebar({ user, venues }: CourtAdminSidebarProps) {
     { href: '/court-admin/refunds', label: 'Refunds', icon: Undo2 },
     { href: '/court-admin/venues', label: 'My Venues', icon: Building2 },
     { href: '/court-admin/analytics', label: 'Analytics', icon: BarChart3 },
+    { href: '/court-admin/queue-history', label: 'Queue History', icon: Clock },
     { href: '/court-admin/reviews', label: 'Reviews', icon: Star },
   ]
 

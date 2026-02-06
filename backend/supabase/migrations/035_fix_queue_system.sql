@@ -150,6 +150,48 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION join_queue(uuid, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION auto_close_expired_sessions() TO authenticated;
 
+-- ============================================================================
+-- 3. NOTIFICATIONS FOR CLOSED SESSIONS
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION notify_queue_participants_session_end()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_venue_name text;
+BEGIN
+  -- Only fire when status changes to 'closed'
+  IF NEW.status = 'closed' AND OLD.status != 'closed' THEN
+    
+    -- Get Venue details
+    SELECT v.name
+    INTO v_venue_name
+    FROM courts c
+    JOIN venues v ON c.venue_id = v.id
+    WHERE c.id = NEW.court_id;
+
+    -- Notify Active Participants
+    INSERT INTO notifications (user_id, type, title, message, action_url)
+    SELECT 
+      qp.user_id,
+      'queue_session_ended',
+      'Queue Session Ended',
+      format('The queue session at %s has ended.', COALESCE(v_venue_name, 'Unknown Venue')),
+      '/queue/' || NEW.id
+    FROM queue_participants qp
+    WHERE qp.queue_session_id = NEW.id
+    AND qp.status != 'left'; 
+
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_notify_queue_closed
+  AFTER UPDATE ON queue_sessions
+  FOR EACH ROW
+  EXECUTE FUNCTION notify_queue_participants_session_end();
+
+
 -- Comment
 COMMENT ON FUNCTION join_queue(uuid, uuid) IS 'Safely joins a queue with race condition protection, capacity checks, and cooldown enforcement.';
 

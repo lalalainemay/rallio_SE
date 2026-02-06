@@ -46,6 +46,7 @@ export default function GlobalAdminSidebar({ user }: GlobalAdminSidebarProps) {
     { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/admin/moderation', label: 'Moderation', icon: ShieldAlert },
     { href: '/admin/settings', label: 'Settings', icon: Settings },
+    { href: '/admin/queue-history', label: 'Queue History', icon: Building2 },
     { href: '/admin/audit', label: 'Audit Logs', icon: FileText },
   ]
 

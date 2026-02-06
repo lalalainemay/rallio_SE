@@ -895,3 +895,95 @@ export async function getMyVenueRefunds(options?: {
     return { success: false, error: error.message }
   }
 }
+
+/**
+ * Get queue session history for court admin's venues
+ */
+export async function getVenueQueueHistory(filters?: {
+  venueId?: string
+  startDate?: string
+  endDate?: string
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+
+  try {
+    // Get all venue IDs owned by user
+    const { data: venues } = await supabase
+      .from('venues')
+      .select('id, name')
+      .eq('owner_id', user.id)
+
+    const venueIds = venues?.map(v => v.id) || []
+
+    if (venueIds.length === 0) {
+      return { success: true, sessions: [] }
+    }
+
+    // If specific venue requested, verify ownership
+    if (filters?.venueId && !venueIds.includes(filters.venueId)) {
+      return { success: false, error: 'Unauthorized for this venue' }
+    }
+
+    const targetVenueIds = filters?.venueId ? [filters.venueId] : venueIds
+
+    let query = supabase
+      .from('queue_sessions')
+      .select(`
+        *,
+        court:courts!inner(
+          id,
+          name,
+          venue:venues!inner(
+            id,
+            name
+          )
+        ),
+        organizer:profiles!inner(
+          display_name,
+          email
+        )
+      `)
+      .in('court.venue_id', targetVenueIds)
+      .in('status', ['closed', 'cancelled']) // Only show closed/cancelled sessions for history
+      .order('start_time', { ascending: false })
+
+    // Apply date filters
+    if (filters?.startDate) {
+      query = query.gte('start_time', filters.startDate)
+    }
+    if (filters?.endDate) {
+      query = query.lte('start_time', filters.endDate)
+    }
+
+    const { data: sessions, error } = await query
+
+    if (error) throw error
+
+    // Format for display
+    const formattedSessions = sessions?.map(s => ({
+      id: s.id,
+      venueName: s.court?.venue?.name,
+      courtName: s.court?.name,
+      organizerName: s.organizer?.display_name || 'Unknown',
+      startTime: new Date(s.start_time),
+      endTime: new Date(s.end_time),
+      status: s.status,
+      maxPlayers: s.max_players,
+      costPerGame: s.cost_per_game,
+      // Calculate revenue if available in summary, otherwise 0
+      totalRevenue: s.settings?.summary?.totalRevenue || 0,
+      totalGames: s.settings?.summary?.totalGames || 0,
+      closedBy: s.settings?.summary?.closedBy || 'unknown',
+    }))
+
+    return { success: true, sessions: formattedSessions }
+  } catch (error: any) {
+    console.error('Error fetching queue history:', error)
+    return { success: false, error: error.message }
+  }
+}

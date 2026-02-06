@@ -264,7 +264,10 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
   }
 
   const totalConfirmed = bookings.filter((b) => ['paid', 'confirmed'].includes(b.status)).length
-  const awaitingPayment = bookings.filter((b) => ['pending_payment', 'pending'].includes(b.status)).length
+  const awaitingPayment = bookings.filter((b) => {
+    const isFullyPaid = b.amount_paid >= b.total_amount
+    return ['pending_payment', 'pending'].includes(b.status) || (b.status === 'confirmed' && !isFullyPaid)
+  }).length
 
   return (
     <div>
@@ -273,8 +276,8 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
         <button
           onClick={() => setActiveTab('upcoming')}
           className={`px-4 py-3 font-medium text-sm border-b-2 transition-all ${activeTab === 'upcoming'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
         >
           Upcoming
@@ -282,8 +285,8 @@ export function BookingsList({ initialBookings }: BookingsListProps) {
         <button
           onClick={() => setActiveTab('history')}
           className={`px-4 py-3 font-medium text-sm border-b-2 transition-all ${activeTab === 'history'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
         >
           History & Refunds

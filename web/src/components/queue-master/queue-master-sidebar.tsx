@@ -15,7 +15,8 @@ import {
   User,
   ArrowLeft,
   ChevronRight,
-  Plus
+  Plus,
+  Clock // Added Clock icon import
 } from 'lucide-react'
 
 interface QueueMasterSidebarProps {
@@ -41,6 +42,7 @@ export function QueueMasterSidebar({ user }: QueueMasterSidebarProps) {
   const navItems = [
     { href: '/queue-master', label: 'Dashboard', icon: LayoutDashboard, exact: true },
     { href: '/queue-master/my-sessions', label: 'My Sessions', icon: Calendar },
+    { href: '/queue-master/history', label: 'History', icon: Clock }, // Added History link
     { href: '/queue-master/analytics', label: 'Analytics', icon: BarChart3 },
   ]
 

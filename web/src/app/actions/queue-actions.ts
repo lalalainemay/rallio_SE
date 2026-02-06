@@ -675,6 +675,61 @@ export async function calculateQueuePayment(sessionId: string) {
 }
 
 /**
+ * Get queue session history for Queue Master (sessions they organized)
+ */
+export async function getQueueMasterHistory() {
+  console.log('[getQueueMasterHistory] 🔍 Fetching queue master history')
+
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { success: false, error: 'User not authenticated' }
+    }
+
+    // Fetch sessions organized by user that are closed or cancelled
+    // Also include expired sessions that might still be marked active/open if cron failed (fallback)
+    const { data: sessions, error } = await supabase
+      .from('queue_sessions')
+      .select(`
+        *,
+        courts (
+          name,
+          venues (
+            name
+          )
+        )
+      `)
+      .eq('organizer_id', user.id)
+      .or('status.in.(closed,cancelled),end_time.lt.now()')
+      .order('start_time', { ascending: false })
+
+    if (error) throw error
+
+    // Format for display
+    const history = sessions?.map(session => ({
+      id: session.id,
+      courtName: session.courts?.name || 'Unknown Court',
+      venueName: session.courts?.venues?.name || 'Unknown Venue',
+      status: session.status,
+      startTime: new Date(session.start_time),
+      endTime: new Date(session.end_time),
+      maxPlayers: session.max_players,
+      costPerGame: session.cost_per_game,
+      totalRevenue: session.settings?.summary?.totalRevenue || 0,
+      totalGames: session.settings?.summary?.totalGames || 0,
+      closedBy: session.settings?.summary?.closedBy || 'unknown',
+    })) || []
+
+    return { success: true, history }
+  } catch (error: any) {
+    console.error('[getQueueMasterHistory] ❌ Error:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+/**
  * ========================================
  * QUEUE MASTER MANAGEMENT ACTIONS
  * ========================================
